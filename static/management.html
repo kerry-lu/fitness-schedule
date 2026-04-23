@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>管理 - 跃界-课表</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="home-btn">←</a>
+        <h2>管理</h2>
+        <div class="nav-links">
+            <span id="user-name"></span>
+        </div>
+    </nav>
+
+    <div class="page-container" style="padding: 15px;">
+        <div class="management-tabs">
+            <button class="tab-btn active" onclick="showMgmtTab('students')">学员</button>
+            <button class="tab-btn" onclick="showMgmtTab('courses')">课程</button>
+            <button class="tab-btn" onclick="showMgmtTab('templates')">模板</button>
+        </div>
+
+        <!-- 学员管理 -->
+        <div id="tab-students" class="mgmt-tab active">
+            <div class="section">
+                <div class="section-header">
+                    <h3>学员列表</h3>
+                    <button onclick="showStudentModal()" class="btn btn-primary btn-small">+ 新增</button>
+                </div>
+                <ul id="student-list" class="list"></ul>
+            </div>
+        </div>
+
+        <!-- 课程管理 -->
+        <div id="tab-courses" class="mgmt-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h3>课程列表</h3>
+                    <button onclick="showCourseModal()" class="btn btn-primary btn-small">+ 新增</button>
+                </div>
+                <ul id="course-list" class="list"></ul>
+            </div>
+        </div>
+
+        <!-- 模板管理 -->
+        <div id="tab-templates" class="mgmt-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h3>模板列表</h3>
+                    <button onclick="showTemplateModal()" class="btn btn-primary btn-small">+ 新增</button>
+                </div>
+                <ul id="template-list" class="list"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 学员弹窗 -->
+    <div id="student-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="student-modal-title">新增学员</h3>
+            <form id="student-form">
+                <input type="hidden" id="student-id">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="student-name" required>
+                </div>
+                <div class="form-group">
+                    <label>电话</label>
+                    <input type="text" id="student-phone">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select id="student-gender">
+                            <option value="">未设置</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>年龄</label>
+                        <input type="number" id="student-age" min="1" max="120">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>运动专项</label>
+                    <input type="text" id="student-specialty" placeholder="如：增肌、减脂、体能、康复等">
+                </div>
+                <div class="form-group">
+                    <label>康复内容</label>
+                    <textarea id="student-rehabilitation" placeholder="记录康复相关问题"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea id="student-note"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <span>启用课时管理</span>
+                        <input type="checkbox" id="student-enable-credits" style="width: auto; margin-left: 10px;">
+                    </label>
+                </div>
+                <div id="credit-fields" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>总课时</label>
+                            <input type="number" id="student-total-hours" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>剩余课时</label>
+                            <input type="number" id="student-remaining-hours" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>到期日期</label>
+                        <input type="date" id="student-expiration-date">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('student-modal')" class="btn btn-secondary">取消</button>
+                    <button type="button" id="delete-student-btn" onclick="deleteStudent()" class="btn btn-danger" style="display:none">删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 课程弹窗 -->
+    <div id="course-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="course-modal-title">新增课程</h3>
+            <form id="course-form">
+                <input type="hidden" id="course-id">
+                <div class="form-group">
+                    <label>课程名称</label>
+                    <input type="text" id="course-name" required>
+                </div>
+                <div class="form-group">
+                    <label>时长</label>
+                    <select id="course-duration" required>
+                        <option value="30">30分钟</option>
+                        <option value="60">60分钟</option>
+                        <option value="90">90分钟</option>
+                        <option value="120">120分钟</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="course-description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('course-modal')" class="btn btn-secondary">取消</button>
+                    <button type="button" id="delete-course-btn" onclick="deleteCourse()" class="btn btn-danger" style="display:none">删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 模板弹窗 -->
+    <div id="template-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="template-modal-title">新增模板</h3>
+            <form id="template-form">
+                <input type="hidden" id="template-id">
+                <div class="form-group">
+                    <label>模板名称</label>
+                    <input type="text" id="template-name" required placeholder="例如：体能训练基础模板">
+                </div>
+                <div class="form-group">
+                    <label>训练内容</label>
+                    <div class="template-editor">
+                        <div id="template-stages"></div>
+                        <button type="button" onclick="addTemplateStage()" class="btn btn-secondary btn-small" style="margin-top: 10px;">+ 添加阶段</button>
+                    </div>
+                    <p class="template-hint">每行一个动作，用逗号分隔动作名称</p>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('template-modal')" class="btn btn-secondary">取消</button>
+                    <button type="button" id="delete-template-btn" onclick="deleteTemplate()" class="btn btn-danger" style="display:none">删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token');
+        let students = [];
+        let courses = [];
+        let templates = [];
+
+        async function checkAuth() {
+            if (!token) {
+                window.location.href = '/login';
+                return false;
+            }
+            try {
+                const response = await fetch('/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error();
+                const user = await response.json();
+                document.getElementById('user-name').textContent = user.name;
+                return true;
+            } catch {
+                window.location.href = '/login';
+                return false;
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+
+        async function apiRequest(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+            if (response.status === 401) {
+                logout();
+                throw new Error('Unauthorized');
+            }
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || '请求失败');
+            }
+            return response.json();
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function showMgmtTab(tab) {
+            document.querySelectorAll('.mgmt-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.querySelector(`[onclick="showMgmtTab('${tab}')"]`).classList.add('active');
+        }
+
+        // 学员管理
+        async function loadStudents() {
+            students = await apiRequest('/api/students');
+            renderStudentList();
+        }
+
+        function renderStudentList() {
+            const list = document.getElementById('student-list');
+            const groups = {};
+            const noSpecialty = [];
+            students.forEach(s => {
+                if (s.specialty && s.specialty.trim()) {
+                    if (!groups[s.specialty]) groups[s.specialty] = [];
+                    groups[s.specialty].push(s);
+                } else {
+                    noSpecialty.push(s);
+                }
+            });
+            let html = '';
+            Object.keys(groups).sort().forEach(specialty => {
+                html += `<li class="group-header">${specialty}</li>`;
+                groups[specialty].forEach(s => html += renderStudentItem(s));
+            });
+            if (noSpecialty.length > 0) {
+                if (Object.keys(groups).length > 0) html += `<li class="group-header">未分类</li>`;
+                noSpecialty.forEach(s => html += renderStudentItem(s));
+            }
+            if (students.length === 0) html = '<li class="empty-tip">暂无学员</li>';
+            list.innerHTML = html;
+        }
+
+        function renderStudentItem(s) {
+            let creditInfo = '';
+            if (s.enable_credits) {
+                const isLow = s.remaining_hours <= 3 && s.remaining_hours > 0;
+                const isEmpty = s.remaining_hours <= 0;
+                const creditClass = isEmpty ? 'credit-empty' : (isLow ? 'credit-low' : '');
+                creditInfo = `<span class="credit-badge ${creditClass}">${s.remaining_hours}/${s.total_hours}</span>`;
+            }
+            return `<li onclick="editStudent(${s.id})">
+                <span>${s.name}${creditInfo}</span>
+                <span class="delete-btn" onclick="event.stopPropagation(); confirmDeleteStudent(${s.id})">删除</span>
+            </li>`;
+        }
+
+        function showStudentModal(id = null) {
+            document.getElementById('student-modal').classList.add('active');
+            document.getElementById('student-form').reset();
+            document.getElementById('student-id').value = '';
+            document.getElementById('delete-student-btn').style.display = 'none';
+            document.getElementById('student-modal-title').textContent = '新增学员';
+            document.getElementById('credit-fields').style.display = 'none';
+            document.getElementById('student-enable-credits').onchange = function() {
+                document.getElementById('credit-fields').style.display = this.checked ? 'block' : 'none';
+            };
+            if (id) editStudent(id);
+        }
+
+        async function editStudent(id) {
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+            document.getElementById('student-modal').classList.add('active');
+            document.getElementById('student-id').value = student.id;
+            document.getElementById('student-name').value = student.name;
+            document.getElementById('student-phone').value = student.phone || '';
+            document.getElementById('student-gender').value = student.gender || '';
+            document.getElementById('student-age').value = student.age || '';
+            document.getElementById('student-specialty').value = student.specialty || '';
+            document.getElementById('student-rehabilitation').value = student.rehabilitation || '';
+            document.getElementById('student-note').value = student.note || '';
+            document.getElementById('student-enable-credits').checked = student.enable_credits === 1;
+            document.getElementById('credit-fields').style.display = student.enable_credits === 1 ? 'block' : 'none';
+            document.getElementById('student-total-hours').value = student.total_hours || 0;
+            document.getElementById('student-remaining-hours').value = student.remaining_hours || 0;
+            document.getElementById('student-expiration-date').value = student.expiration_date || '';
+            document.getElementById('student-modal-title').textContent = '编辑学员';
+            document.getElementById('delete-student-btn').style.display = 'block';
+            document.getElementById('student-enable-credits').onchange = function() {
+                document.getElementById('credit-fields').style.display = this.checked ? 'block' : 'none';
+            };
+        }
+
+        async function saveStudent(e) {
+            e.preventDefault();
+            const id = document.getElementById('student-id').value;
+            const enableCredits = document.getElementById('student-enable-credits').checked;
+            const data = {
+                name: document.getElementById('student-name').value,
+                phone: document.getElementById('student-phone').value,
+                gender: document.getElementById('student-gender').value || null,
+                age: parseInt(document.getElementById('student-age').value) || null,
+                specialty: document.getElementById('student-specialty').value || null,
+                rehabilitation: document.getElementById('student-rehabilitation').value || null,
+                note: document.getElementById('student-note').value,
+                enable_credits: enableCredits ? 1 : 0,
+                total_hours: parseInt(document.getElementById('student-total-hours').value) || 0,
+                remaining_hours: parseInt(document.getElementById('student-remaining-hours').value) || 0,
+                expiration_date: document.getElementById('student-expiration-date').value || null
+            };
+            try {
+                if (id) {
+                    await apiRequest(`/api/students/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                } else {
+                    await apiRequest('/api/students', { method: 'POST', body: JSON.stringify(data) });
+                }
+                closeModal('student-modal');
+                loadStudents();
+            } catch (err) { alert(err.message); }
+        }
+
+        async function deleteStudent() {
+            const id = document.getElementById('student-id').value;
+            if (!id || !confirm('确定要删除这个学员吗？')) return;
+            try {
+                await apiRequest(`/api/students/${id}`, { method: 'DELETE' });
+                closeModal('student-modal');
+                loadStudents();
+            } catch (err) { alert(err.message); }
+        }
+
+        function confirmDeleteStudent(id) {
+            if (confirm('确定要删除这个学员吗？')) deleteStudentById(id);
+        }
+
+        async function deleteStudentById(id) {
+            try {
+                await apiRequest(`/api/students/${id}`, { method: 'DELETE' });
+                loadStudents();
+            } catch (err) { alert(err.message); }
+        }
+
+        // 课程管理
+        async function loadCourses() {
+            courses = await apiRequest('/api/courses');
+            renderCourseList();
+        }
+
+        function renderCourseList() {
+            const list = document.getElementById('course-list');
+            list.innerHTML = courses.map(c => `
+                <li onclick="editCourse(${c.id})">
+                    <span>${c.name} (${c.duration_minutes}分钟)</span>
+                    <span class="delete-btn" onclick="event.stopPropagation(); confirmDeleteCourse(${c.id})">删除</span>
+                </li>
+            `).join('');
+        }
+
+        function showCourseModal(id = null) {
+            document.getElementById('course-modal').classList.add('active');
+            document.getElementById('course-form').reset();
+            document.getElementById('course-id').value = '';
+            document.getElementById('delete-course-btn').style.display = 'none';
+            document.getElementById('course-modal-title').textContent = '新增课程';
+            if (id) editCourse(id);
+        }
+
+        async function editCourse(id) {
+            const course = courses.find(c => c.id === id);
+            if (!course) return;
+            document.getElementById('course-modal').classList.add('active');
+            document.getElementById('course-id').value = course.id;
+            document.getElementById('course-name').value = course.name;
+            document.getElementById('course-duration').value = course.duration_minutes;
+            document.getElementById('course-description').value = course.description || '';
+            document.getElementById('course-modal-title').textContent = '编辑课程';
+            document.getElementById('delete-course-btn').style.display = 'block';
+        }
+
+        async function saveCourse(e) {
+            e.preventDefault();
+            const id = document.getElementById('course-id').value;
+            const data = {
+                name: document.getElementById('course-name').value,
+                duration_minutes: parseInt(document.getElementById('course-duration').value),
+                description: document.getElementById('course-description').value
+            };
+            try {
+                if (id) {
+                    await apiRequest(`/api/courses/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                } else {
+                    await apiRequest('/api/courses', { method: 'POST', body: JSON.stringify(data) });
+                }
+                closeModal('course-modal');
+                loadCourses();
+            } catch (err) { alert(err.message); }
+        }
+
+        async function deleteCourse() {
+            const id = document.getElementById('course-id').value;
+            if (!id || !confirm('确定要删除这个课程吗？')) return;
+            try {
+                await apiRequest(`/api/courses/${id}`, { method: 'DELETE' });
+                closeModal('course-modal');
+                loadCourses();
+            } catch (err) { alert(err.message); }
+        }
+
+        function confirmDeleteCourse(id) {
+            if (confirm('确定要删除这个课程吗？')) deleteCourseById(id);
+        }
+
+        async function deleteCourseById(id) {
+            try {
+                await apiRequest(`/api/courses/${id}`, { method: 'DELETE' });
+                loadCourses();
+            } catch (err) { alert(err.message); }
+        }
+
+        // 模板管理
+        async function loadTemplates() {
+            templates = await apiRequest('/api/templates');
+            renderTemplateList();
+        }
+
+        function renderTemplateList() {
+            const list = document.getElementById('template-list');
+            list.innerHTML = templates.map(t => `
+                <li onclick="editTemplate(${t.id})">
+                    <span>${t.name}</span>
+                    <span class="delete-btn" onclick="event.stopPropagation(); confirmDeleteTemplate(${t.id})">删除</span>
+                </li>
+            `).join('');
+        }
+
+        function showTemplateModal(id = null) {
+            document.getElementById('template-modal').classList.add('active');
+            document.getElementById('template-form').reset();
+            document.getElementById('template-id').value = '';
+            document.getElementById('delete-template-btn').style.display = 'none';
+            document.getElementById('template-modal-title').textContent = '新增模板';
+            document.getElementById('template-stages').innerHTML = '';
+            if (id) editTemplate(id);
+            else addTemplateStage();
+        }
+
+        function editTemplate(id) {
+            const template = templates.find(t => t.id === id);
+            if (!template) return;
+            document.getElementById('template-modal').classList.add('active');
+            document.getElementById('template-id').value = template.id;
+            document.getElementById('template-name').value = template.name;
+            document.getElementById('template-modal-title').textContent = '编辑模板';
+            document.getElementById('delete-template-btn').style.display = 'block';
+            try {
+                const content = JSON.parse(template.content || '{"stages":[]}');
+                document.getElementById('template-stages').innerHTML = '';
+                if (content.stages && content.stages.length > 0) {
+                    content.stages.forEach(stage => addTemplateStage(stage));
+                } else {
+                    addTemplateStage();
+                }
+            } catch (e) {
+                document.getElementById('template-stages').innerHTML = '';
+                addTemplateStage();
+            }
+        }
+
+        function addTemplateStage(stage = null) {
+            const container = document.getElementById('template-stages');
+            const stageDiv = document.createElement('div');
+            stageDiv.className = 'template-stage-editor';
+            stageDiv.innerHTML = `
+                <div class="template-stage-header-editor">
+                    <input type="text" class="stage-name" placeholder="阶段名称（如：热身）" value="${stage?.name || ''}" style="flex:1;">
+                    <input type="number" class="stage-duration" placeholder="时长" value="${stage?.duration || ''}" style="width: 70px;">
+                    <span class="exercise-unit">分钟</span>
+                </div>
+                <div class="template-exercises-list">
+                    ${(stage?.exercises || [{name:'', reps:'', sets:''}]).map(ex => `
+                        <div class="exercise-row">
+                            <input type="text" class="exercise-name" placeholder="动作名称" value="${ex.name || ''}">
+                            <input type="number" class="exercise-reps" placeholder="次" value="${ex.reps || ''}" min="1" style="width: 60px;">
+                            <span class="exercise-unit">次 ×</span>
+                            <input type="number" class="exercise-sets" placeholder="组" value="${ex.sets || ''}" min="1" style="width: 60px;">
+                            <span class="exercise-unit">组</span>
+                            <button type="button" class="exercise-remove" onclick="this.parentElement.remove()">×</button>
+                        </div>
+                    `).join('')}
+                </div>
+                <button type="button" onclick="addExerciseRow(this)" class="btn btn-secondary btn-small" style="margin-top: 8px;">+ 添加动作</button>
+                <button type="button" onclick="this.parentElement.remove()" class="btn btn-danger btn-small" style="margin-top: 8px; margin-left: 8px;">删除阶段</button>
+            `;
+            container.appendChild(stageDiv);
+        }
+
+        function addExerciseRow(btn) {
+            const exercisesList = btn.previousElementSibling;
+            const newRow = document.createElement('div');
+            newRow.className = 'exercise-row';
+            newRow.innerHTML = `
+                <input type="text" class="exercise-name" placeholder="动作名称" value="">
+                <input type="number" class="exercise-reps" placeholder="次" value="" min="1" style="width: 60px;">
+                <span class="exercise-unit">次 ×</span>
+                <input type="number" class="exercise-sets" placeholder="组" value="" min="1" style="width: 60px;">
+                <span class="exercise-unit">组</span>
+                <button type="button" class="exercise-remove" onclick="this.parentElement.remove()">×</button>
+            `;
+            exercisesList.appendChild(newRow);
+        }
+
+        async function saveTemplate(e) {
+            e.preventDefault();
+            const id = document.getElementById('template-id').value;
+            const stages = [];
+            document.querySelectorAll('.template-stage-editor').forEach(editor => {
+                const name = editor.querySelector('.stage-name').value.trim();
+                const duration = parseInt(editor.querySelector('.stage-duration').value) || 0;
+                const exercises = [];
+                editor.querySelectorAll('.exercise-row').forEach(row => {
+                    const exerciseName = row.querySelector('.exercise-name').value.trim();
+                    const reps = parseInt(row.querySelector('.exercise-reps').value) || null;
+                    const sets = parseInt(row.querySelector('.exercise-sets').value) || null;
+                    if (exerciseName) exercises.push({ name: exerciseName, reps, sets });
+                });
+                if (name || exercises.length > 0) stages.push({ name, duration, exercises });
+            });
+            const data = {
+                name: document.getElementById('template-name').value,
+                content: JSON.stringify({ stages })
+            };
+            try {
+                if (id) {
+                    await apiRequest(`/api/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                } else {
+                    await apiRequest('/api/templates', { method: 'POST', body: JSON.stringify(data) });
+                }
+                closeModal('template-modal');
+                loadTemplates();
+            } catch (err) { alert(err.message); }
+        }
+
+        async function deleteTemplate() {
+            const id = document.getElementById('template-id').value;
+            if (!id || !confirm('确定要删除这个模板吗？')) return;
+            try {
+                await apiRequest(`/api/templates/${id}`, { method: 'DELETE' });
+                closeModal('template-modal');
+                loadTemplates();
+            } catch (err) { alert(err.message); }
+        }
+
+        function confirmDeleteTemplate(id) {
+            if (confirm('确定要删除这个模板吗？')) deleteTemplateById(id);
+        }
+
+        async function deleteTemplateById(id) {
+            try {
+                await apiRequest(`/api/templates/${id}`, { method: 'DELETE' });
+                loadTemplates();
+            } catch (err) { alert(err.message); }
+        }
+
+        // 初始化
+        async function init() {
+            if (!await checkAuth()) return;
+            await Promise.all([loadStudents(), loadCourses(), loadTemplates()]);
+            document.getElementById('student-form').addEventListener('submit', saveStudent);
+            document.getElementById('course-form').addEventListener('submit', saveCourse);
+            document.getElementById('template-form').addEventListener('submit', saveTemplate);
+        }
+
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal')) {
+                e.target.classList.remove('active');
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>

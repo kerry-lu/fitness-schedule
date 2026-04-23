@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>跃界-课表</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet'>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+</head>
+<body>
+    <nav class="navbar">
+        <h2>跃界-课表</h2>
+        <div class="nav-links">
+            <span id="user-name"></span>
+            <a href="/management" class="btn btn-secondary btn-small">管理</a>
+            <button onclick="logout()" class="btn btn-secondary btn-small">退出</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <main class="main-content">
+            <div class="filter-bar">
+                <select id="filter-coach" class="filter-select" onchange="applyFilters()">
+                    <option value="">全部教练</option>
+                </select>
+                <select id="filter-student" class="filter-select" onchange="applyFilters()">
+                    <option value="">全部学员</option>
+                </select>
+                <select id="filter-course" class="filter-select" onchange="applyFilters()">
+                    <option value="">全部课程</option>
+                </select>
+                <button onclick="clearFilters()" class="btn btn-secondary btn-small">清除筛选</button>
+            </div>
+            <div id="calendar-wrapper" class="calendar-wrapper">
+                <div id="calendar"></div>
+            </div>
+        </main>
+
+        <div class="resizer" id="detail-resizer"></div>
+
+        <aside id="detail-panel" class="detail-panel" style="width: 460px;">
+            <div class="detail-panel-header">
+                <h3 id="detail-panel-title">日程列表</h3>
+                <button class="detail-panel-close" onclick="showScheduleList()">←</button>
+            </div>
+            <div class="detail-panel-content">
+                <!-- 日程列表视图 -->
+                <div id="schedule-list-view">
+                    <div id="schedule-list-content"></div>
+                </div>
+                <!-- 课程详情视图 -->
+                <div id="schedule-detail-view" style="display: none;">
+                    <div class="detail-section">
+                        <div class="detail-section-title">基本信息</div>
+                        <div class="detail-info">
+                            <p><span class="label">学员：</span><span id="detail-student" class="value">-</span></p>
+                            <p><span class="label">课程：</span><span id="detail-course" class="value">-</span></p>
+                            <p><span class="label">日期：</span><span id="detail-date" class="value">-</span></p>
+                            <p><span class="label">时间：</span><span id="detail-time" class="value">-</span></p>
+                        </div>
+                    </div>
+
+                    <!-- 训练内容查看模式 -->
+                    <div class="detail-section" id="training-view-section">
+                        <div class="detail-section-title">
+                            训练内容
+                            <button onclick="showTrainingEdit()" id="btn-edit-training" class="btn btn-secondary btn-small" style="margin-left: 10px;">编辑</button>
+                        </div>
+                        <div id="detail-training" class="template-content">
+                            <p style="color: var(--ios-text-secondary);">暂无训练内容</p>
+                        </div>
+                    </div>
+
+                    <!-- 训练内容编辑模式 -->
+                    <div class="detail-section" id="training-edit-section" style="display: none;">
+                        <div class="detail-section-title">
+                            编辑训练内容
+                            <button onclick="cancelTrainingEdit()" class="btn btn-secondary btn-small" style="margin-left: 10px;">取消</button>
+                        </div>
+                        <div class="training-edit-container">
+                            <div id="training-edit-stages"></div>
+                            <button type="button" onclick="addTrainingStageEdit()" class="btn btn-secondary btn-small" style="margin-top: 10px;">+ 添加阶段</button>
+                        </div>
+                        <div class="form-actions" style="margin-top: 15px;">
+                            <button onclick="saveTrainingContent()" class="btn btn-primary">保存</button>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">应用模板</div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <select id="detail-template-select" onchange="applyTemplateFromPanel()">
+                                <option value="">无</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <div class="detail-section-title">备注</div>
+                        <div class="form-group">
+                            <textarea id="detail-note-input" placeholder="输入备注..." style="min-height: 80px;"></textarea>
+                        </div>
+                        <button onclick="saveNoteFromPanel()" class="btn btn-secondary btn-small">保存备注</button>
+                    </div>
+
+                    <div class="detail-section" id="attendance-section" style="display: none;">
+                        <div class="detail-section-title">上课记录</div>
+                        <div class="detail-info" style="background: var(--ios-gray-lighter); padding: 12px; border-radius: 10px;">
+                            <p><span class="label">状态：</span><span id="detail-attendance-status" class="value">-</span></p>
+                            <p id="detail-attendance-student-status-row"><span class="label">学员状态：</span><span id="detail-attendance-student-status" class="value">-</span></p>
+                            <p id="detail-attendance-note-row" style="display: none;"><span class="label">教练备注：</span><span id="detail-attendance-note" class="value">-</span></p>
+                        </div>
+                    </div>
+
+                    <div class="form-actions" style="margin-top: 20px;">
+                        <button onclick="completeScheduleFromPanel()" id="btn-complete" class="btn btn-primary">完成上课</button>
+                        <button onclick="editScheduleFromPanel()" class="btn btn-secondary">编辑</button>
+                        <button onclick="deleteScheduleFromPanel()" class="btn btn-danger">删除</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 学员弹窗 -->
+    <div id="student-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="student-modal-title">新增学员</h3>
+            <form id="student-form">
+                <input type="hidden" id="student-id">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="student-name" required>
+                </div>
+                <div class="form-group">
+                    <label>电话</label>
+                    <input type="text" id="student-phone">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>性别</label>
+                        <select id="student-gender">
+                            <option value="">未设置</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>年龄</label>
+                        <input type="number" id="student-age" min="1" max="120">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>运动专项</label>
+                    <input type="text" id="student-specialty" placeholder="如：增肌、减脂、体能、康复等">
+                </div>
+                <div class="form-group">
+                    <label>康复内容</label>
+                    <textarea id="student-rehabilitation" placeholder="记录康复相关问题"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea id="student-note"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <span>启用课时管理</span>
+                        <input type="checkbox" id="student-enable-credits" style="width: auto; margin-left: 10px;">
+                    </label>
+                </div>
+                <div id="credit-fields" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>总课时</label>
+                            <input type="number" id="student-total-hours" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>剩余课时</label>
+                            <input type="number" id="student-remaining-hours" min="0" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>到期日期</label>
+                        <input type="date" id="student-expiration-date">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('student-modal')" class="btn btn-secondary">取消</button>
+                    <button type="button" id="delete-student-btn" onclick="deleteStudent()" class="btn btn-danger" style="display:none">删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 课程弹窗 -->
+    <div id="course-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="course-modal-title">新增课程</h3>
+            <form id="course-form">
+                <input type="hidden" id="course-id">
+                <div class="form-group">
+                    <label>课程名称</label>
+                    <input type="text" id="course-name" required>
+                </div>
+                <div class="form-group">
+                    <label>时长</label>
+                    <select id="course-duration" required>
+                        <option value="30">30分钟</option>
+                        <option value="60">60分钟</option>
+                        <option value="90">90分钟</option>
+                        <option value="120">120分钟</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="course-description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('course-modal')" class="btn btn-secondary">取消</button>
+                    <button type="button" id="delete-course-btn" onclick="deleteCourse()" class="btn btn-danger" style="display:none">删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 模板弹窗 -->
+    <div id="template-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="template-modal-title">新增模板</h3>
+            <form id="template-form">
+                <input type="hidden" id="template-id">
+                <div class="form-group">
+                    <label>模板名称</label>
+                    <input type="text" id="template-name" required placeholder="例如：体能训练基础模板">
+                </div>
+                <div class="form-group">
+                    <label>训练内容</label>
+                    <div class="template-editor">
+                        <div id="template-stages">
+                            <!-- 动态生成训练阶段 -->
+                        </div>
+                        <button type="button" onclick="addTemplateStage()" class="btn btn-secondary btn-small" style="margin-top: 10px;">+ 添加阶段</button>
+                    </div>
+                    <p class="template-hint">每行一个动作，用逗号分隔动作名称</p>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('template-modal')" class="btn btn-secondary">取消</button>
+                    <button type="button" id="delete-template-btn" onclick="deleteTemplate()" class="btn btn-danger" style="display:none">删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 教练管理弹窗 -->
+    <div id="coach-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="coach-modal-title">教练角色设置</h3>
+            <form id="coach-form">
+                <input type="hidden" id="coach-id">
+                <div class="form-group">
+                    <label>教练</label>
+                    <input type="text" id="coach-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label>角色</label>
+                    <select id="coach-role" required>
+                        <option value="coach">教练</option>
+                        <option value="head_coach">主教练</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('coach-modal')" class="btn btn-secondary">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 课表安排弹窗 -->
+    <div id="schedule-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="schedule-modal-title">新增课程安排</h3>
+            <form id="schedule-form">
+                <input type="hidden" id="schedule-id">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="schedule-date" required>
+                </div>
+                <div class="form-group">
+                    <label>学员</label>
+                    <select id="schedule-student" required></select>
+                </div>
+                <div class="form-group">
+                    <label>课程</label>
+                    <select id="schedule-course" required></select>
+                </div>
+                <div class="form-group">
+                    <label>训练模板</label>
+                    <select id="schedule-template">
+                        <option value="">无</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>开始时间</label>
+                    <select id="schedule-start-time" required></select>
+                </div>
+                <div class="form-group">
+                    <label>重复</label>
+                    <div class="repeat-options">
+                        <button type="button" class="repeat-option active" data-repeat="none">不重复</button>
+                        <button type="button" class="repeat-option" data-repeat="daily">每天</button>
+                        <button type="button" class="repeat-option" data-repeat="weekly">每周</button>
+                        <button type="button" class="repeat-option" data-repeat="monthly">每月</button>
+                    </div>
+                    <input type="hidden" id="schedule-repeat-type" value="none">
+                    <div class="repeat-end-date" id="repeat-end-date-container" style="display: none;">
+                        <label style="font-size: 13px; color: var(--ios-text-secondary);">重复结束日期</label>
+                        <input type="date" id="schedule-repeat-end-date" style="margin-top: 5px;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <textarea id="schedule-note"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <button type="button" onclick="closeModal('schedule-modal')" class="btn btn-secondary">取消</button>
+                    <button type="button" id="delete-schedule-btn" onclick="deleteSchedule()" class="btn btn-danger" style="display:none">删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 上课记录弹窗 -->
+    <div id="attendance-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="attendance-modal-title">完成上课</h3>
+            <form id="attendance-form">
+                <input type="hidden" id="attendance-schedule-id">
+                <input type="hidden" id="attendance-student-id">
+                <div class="form-group">
+                    <label>学员</label>
+                    <input type="text" id="attendance-student-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label>学员状态</label>
+                    <select id="attendance-student-status">
+                        <option value="">未选择</option>
+                        <option value="良好">良好</option>
+                        <option value="疲劳">疲劳</option>
+                        <option value="不适">不适</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>教练备注</label>
+                    <textarea id="attendance-coach-note" placeholder="记录上课情况..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <span>扣减课时</span>
+                        <input type="checkbox" id="attendance-deduct-credits" checked style="width: auto; margin-left: 10px;">
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">确认完成</button>
+                    <button type="button" onclick="closeModal('attendance-modal')" class="btn btn-secondary">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 快速添加面板 -->
+    <div id="quick-add-panel" class="slide-panel">
+        <div class="slide-panel-header">
+            <h3>快速添加</h3>
+            <button onclick="closeQuickAddPanel()" class="close-btn">&times;</button>
+        </div>
+        <input type="hidden" id="quick-add-date">
+        <div id="quick-add-content" class="slide-panel-content"></div>
+    </div>
+    <div id="slide-overlay" class="slide-overlay" onclick="closeQuickAddPanel()"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 跃界-课表</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <h1>跃界-课表</h1>
+        <div class="tabs">
+            <button class="tab active" data-tab="login">登录</button>
+            <button class="tab" data-tab="register">注册</button>
+        </div>
+
+        <form id="login-form" class="form active">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">登录</button>
+        </form>
+
+        <form id="register-form" class="form">
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" name="name" required>
+            </div>
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">注册</button>
+        </form>
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        const tabs = document.querySelectorAll('.tab');
+        const forms = document.querySelectorAll('.form');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                tabs.forEach(t => t.classList.remove('active'));
+                forms.forEach(f => f.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(`${tabName}-form`).classList.add('active');
+            });
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password')
+            };
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: new URLSearchParams(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    localStorage.setItem('token', result.access_token);
+                    window.location.href = '/';
+                } else {
+                    const error = await response.json();
+                    showMessage(error.detail || '登录失败', 'error');
+                }
+            } catch (err) {
+                showMessage('网络错误', 'error');
+            }
+        });
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                username: formData.get('username'),
+                password: formData.get('password')
+            };
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showMessage('注册成功，请登录', 'success');
+                    document.querySelector('[data-tab="login"]').click();
+                } else {
+                    const error = await response.json();
+                    showMessage(error.detail || '注册失败', 'error');
+                }
+            } catch (err) {
+                showMessage('网络错误', 'error');
+            }
+        });
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            setTimeout(() => msg.textContent = '', 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  fitness_schedule:
+    build: .
+    container_name: fitness_schedule
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=Asia/Shanghai
