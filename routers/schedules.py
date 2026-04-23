@@ -12,6 +12,9 @@ from authorization import can_modify_schedule, can_access_coach_management
 
 router = APIRouter(prefix="/api/schedules", tags=["课表管理"])
 
+# 每节课扣减的课时数
+CREDIT_DEDUCTION_PER_SESSION = 1
+
 
 def calculate_end_time(start_time: str, duration_minutes: int) -> str:
     from datetime import datetime, timedelta
@@ -318,8 +321,8 @@ def complete_schedule(
     # 如果启用课时功能且需要扣减
     if deduct_credits and schedule.student.enable_credits:
         if schedule.student.remaining_hours > 0:
-            # 一节课扣减1课时，不关时长
-            schedule.student.remaining_hours = schedule.student.remaining_hours - 1
+            # 每完成一节课扣减指定课时数
+            schedule.student.remaining_hours = schedule.student.remaining_hours - CREDIT_DEDUCTION_PER_SESSION
 
     db.commit()
     return {"message": "课程已完成", "remaining_hours": schedule.student.remaining_hours if schedule.student else 0}

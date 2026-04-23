@@ -23,7 +23,7 @@ class Student(Base):
     __tablename__ = "students"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
     name = Column(String, index=True)
     phone = Column(String, nullable=True)
     gender = Column(String, nullable=True)  # 男/女
@@ -71,11 +71,11 @@ class Schedule(Base):
     __tablename__ = "schedules"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"))
-    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"))
-    template_id = Column(Integer, ForeignKey("course_templates.id", ondelete="SET NULL"), nullable=True)
-    date = Column(Date)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), index=True)
+    template_id = Column(Integer, ForeignKey("course_templates.id", ondelete="SET NULL"), nullable=True, index=True)
+    date = Column(Date, index=True)
     start_time = Column(Time)
     end_time = Column(Time)
     note = Column(Text, nullable=True)
@@ -99,10 +99,10 @@ class AttendanceRecord(Base):
     __tablename__ = "attendance_records"
 
     id = Column(Integer, primary_key=True, index=True)
-    schedule_id = Column(Integer, ForeignKey("schedules.id", ondelete="CASCADE"))
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"))
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))  # 上课教练
-    date = Column(Date)
+    schedule_id = Column(Integer, ForeignKey("schedules.id", ondelete="CASCADE"), index=True)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True)  # 上课教练
+    date = Column(Date, index=True)
     status = Column(String, default="completed")  # completed, absent, cancelled
     student_status = Column(String, nullable=True)  # 学员状态：良好/疲劳/不适
     coach_note = Column(Text, nullable=True)  # 教练备注
