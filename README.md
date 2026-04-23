@@ -29,7 +29,7 @@
 git clone https://github.com/kerry-lu/fitness-schedule.git
 cd fitness-schedule
 
-# 启动服务
+# 启动服务（使用默认密钥，仅用于开发）
 ./start.sh
 
 # 停止服务
@@ -44,11 +44,51 @@ cd fitness-schedule
 # 安装依赖
 pip install -r requirements.txt
 
+# 设置密钥环境变量
+export SECRET_KEY=your-secret-key-here
+
 # 启动服务
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 访问 http://localhost:8000
+
+## 重要配置
+
+### SECRET_KEY 环境变量
+
+**必须设置！** 系统强制要求 `SECRET_KEY` 环境变量用于 JWT token 签名。
+
+```bash
+# Linux/macOS
+export SECRET_KEY=your-very-long-random-secret-key
+
+# Windows (CMD)
+set SECRET_KEY=your-very-long-random-secret-key
+
+# Docker 运行时
+docker run -e SECRET_KEY=your-secret-key kerrylu/fitness-schedule:latest
+```
+
+建议使用 32+ 字符的随机字符串作为密钥。
+
+## 数据库迁移
+
+系统支持数据库迁移，便于版本升级。
+
+```bash
+# 查看迁移状态
+python migrations/manager.py status
+
+# 执行待应用迁移
+python migrations/manager.py migrate
+
+# 回滚到指定版本
+python migrations/manager.py rollback 001
+
+# 创建新迁移
+python migrations/create.py add_new_field
+```
 
 ## 软路由 Docker 部署
 
@@ -70,11 +110,12 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
    # 创建数据目录
    mkdir -p /mnt/storage/fitness-schedule/data
 
-   # 运行容器
+   # 运行容器（注意设置 SECRET_KEY）
    docker run -d \
      --name fitness-schedule \
      --restart unless-stopped \
      -p 8000:8000 \
+     -e SECRET_KEY=your-production-secret-key \
      -v /mnt/storage/fitness-schedule/data:/app/data \
      kerrylu/fitness-schedule:latest
    ```
@@ -105,6 +146,7 @@ docker run -d \
   --name fitness-schedule \
   --restart unless-stopped \
   -p 8000:8000 \
+  -e SECRET_KEY=your-secret-key \
   -v /mnt/storage/fitness-schedule/data:/app/data \
   kerrylu/fitness-schedule:latest
 ```
@@ -116,13 +158,14 @@ docker run -d \
 docker pull kerrylu/fitness-schedule:latest
 
 # 创建容器
-解析cli run -d --name fitness-schedule --restart unless-stopped -p 8000:8000 -v /mnt/storage/fitness-schedule/data:/app/data kerrylu/fitness-schedule:latest
+解析cli run -d --name fitness-schedule --restart unless-stopped -p 8000:8000 -e SECRET_KEY=your-secret-key -v /mnt/storage/fitness-schedule/data:/app/data kerrylu/fitness-schedule:latest
 ```
 
 **注意事项：**
 - 确保软路由已安装 Docker
 - 数据目录 `/mnt/storage/fitness-schedule/data` 请根据实际存储路径修改
 - 首次使用需要登录注册账号
+- **必须设置 `SECRET_KEY` 环境变量**
 
 ## 初始账号
 
@@ -147,6 +190,46 @@ docker pull kerrylu/fitness-schedule:latest
 
 - 可预约时间：10:00 - 20:00
 - 每节课时长：30/60/90/120 分钟
+
+## 安全特性
+
+- JWT Token 认证（强制要求 SECRET_KEY）
+- 统一的登录错误消息（防止用户枚举）
+- 输入验证（密码长度、手机号格式、年龄范围等）
+- HTML 转义防 XSS
+- 外键级联删除
+- 数据库索引优化
+
+## 测试
+
+```bash
+# 安装测试依赖
+pip install pytest
+
+# 运行测试
+SECRET_KEY=test-secret pytest tests/ -v
+```
+
+## 变更日志
+
+### v2.0 (2026-04-24)
+
+**安全更新：**
+- JWT 密钥强制使用环境变量
+- 统一登录错误消息防止用户枚举
+- 前端 HTML 转义防 XSS 攻击
+- 添加外键级联删除
+
+**功能更新：**
+- 数据库迁移框架
+- API 分页支持
+- 输入验证增强（密码、手机号、年龄、课程时长）
+- Toast 通知系统
+- 全局异常处理
+
+**性能优化：**
+- 数据库外键列添加索引
+- 扣减课时常量定义
 
 ## 许可证
 
