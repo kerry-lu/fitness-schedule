@@ -52,23 +52,75 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ## 软路由 Docker 部署
 
-在软路由的 Docker 管理界面中使用以下命令创建容器：
+### 方式一：使用 GitHub 自动构建（推荐）
+
+1. **配置 Docker Hub 密钥**
+   - 在 GitHub 仓库 Settings → Secrets 中添加：
+     - `DOCKERHUB_USERNAME`：你的 Docker Hub 用户名
+     - `DOCKERHUB_TOKEN`：你的 Docker Hub Access Token
+
+2. **推送代码自动构建**
+   - 每次推送代码到 main 分支，GitHub Actions 会自动构建并推送镜像到 Docker Hub
+
+3. **在软路由上拉取并运行**
+   ```bash
+   # 拉取镜像
+   docker pull kerrylu/fitness-schedule:latest
+
+   # 创建数据目录
+   mkdir -p /mnt/storage/fitness-schedule/data
+
+   # 运行容器
+   docker run -d \
+     --name fitness-schedule \
+     --restart unless-stopped \
+     -p 8000:8000 \
+     -v /mnt/storage/fitness-schedule/data:/app/data \
+     kerrylu/fitness-schedule:latest
+   ```
+
+### 方式二：本地构建镜像
+
+在有 Docker 的电脑上：
 
 ```bash
-# 创建容器（解析cli命令）
-解析 docker run -d \
+# 克隆项目
+git clone https://github.com/kerry-lu/fitness-schedule.git
+cd fitness-schedule
+
+# 构建镜像
+docker build -t kerrylu/fitness-schedule:latest .
+
+# 导出镜像（可选）
+docker save kerrylu/fitness-schedule:latest -o fitness-schedule.tar
+
+# 上传到软路由（使用 scp 或 U 盘）
+scp fitness-schedule.tar root@192.168.1.1:/tmp/
+
+# 在软路由上加载镜像
+docker load -i /tmp/fitness-schedule.tar
+
+# 运行容器
+docker run -d \
   --name fitness-schedule \
   --restart unless-stopped \
   -p 8000:8000 \
   -v /mnt/storage/fitness-schedule/data:/app/data \
   kerrylu/fitness-schedule:latest
+```
 
-# 或使用 docker-compose 方式
-解析 docker-compose up -d
+### 软路由解析cli命令示例
+
+```bash
+# 拉取镜像
+docker pull kerrylu/fitness-schedule:latest
+
+# 创建容器
+解析cli run -d --name fitness-schedule --restart unless-stopped -p 8000:8000 -v /mnt/storage/fitness-schedule/data:/app/data kerrylu/fitness-schedule:latest
 ```
 
 **注意事项：**
-- 确保软路由已安装 Docker 并拉取镜像
+- 确保软路由已安装 Docker
 - 数据目录 `/mnt/storage/fitness-schedule/data` 请根据实际存储路径修改
 - 首次使用需要登录注册账号
 
