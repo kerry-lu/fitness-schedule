@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List
@@ -20,9 +20,14 @@ def can_modify_student(student: models.Student, current_user: models.User) -> bo
 
 
 @router.get("", response_model=List[schemas.StudentResponse])
-def list_students(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def list_students(
+    skip: int = Query(0, ge=0, description="跳过的记录数"),
+    limit: int = Query(100, ge=1, le=500, description="返回的记录数"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     # 所有教练都可以查看所有学员
-    return db.query(models.Student).all()
+    return db.query(models.Student).offset(skip).limit(limit).all()
 
 
 @router.post("", response_model=schemas.StudentResponse)

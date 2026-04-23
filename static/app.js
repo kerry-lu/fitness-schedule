@@ -7,6 +7,14 @@ let templates = [];
 let coaches = [];
 let currentScheduleId = null;
 
+// HTML 转义函数，防止 XSS
+function escapeHtml(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
 // ==================== 初始化 ====================
 
 async function checkAuth() {
@@ -82,7 +90,7 @@ function renderTemplateList() {
     if (!list) return;
     list.innerHTML = templates.map(t => `
         <li onclick="editTemplate(${t.id})">
-            <span>${t.name}</span>
+            <span>${escapeHtml(t.name)}</span>
             <span class="delete-btn" onclick="event.stopPropagation(); confirmDeleteTemplate(${t.id})">删除</span>
         </li>
     `).join('');
@@ -91,7 +99,7 @@ function renderTemplateList() {
 function updateTemplateSelect() {
     const select = document.getElementById('schedule-template');
     select.innerHTML = '<option value="">无</option>' + templates.map(t =>
-        `<option value="${t.id}">${t.name}</option>`
+        `<option value="${t.id}">${escapeHtml(t.name)}</option>`
     ).join('');
 }
 
@@ -318,7 +326,7 @@ async function loadCoaches() {
 function updateCoachFilter() {
     const filterCoach = document.getElementById('filter-coach');
     filterCoach.innerHTML = '<option value="">全部教练</option>' + coaches.map(c =>
-        `<option value="${c.id}">${c.name}${c.role === 'head_coach' ? ' (主教练)' : ''}</option>`
+        `<option value="${c.id}">${escapeHtml(c.name)}${c.role === 'head_coach' ? ' (主教练)' : ''}</option>`
     ).join('');
 }
 
@@ -329,7 +337,7 @@ function renderCoachList() {
         const isCurrentUser = c.id === currentUser.id;
         return `
             <li onclick="${isCurrentUser ? '' : `editCoach(${c.id})`}">
-                <span>${c.name} <small style="color: var(--ios-text-secondary);">(${roleText})</small></span>
+                <span>${escapeHtml(c.name)} <small style="color: var(--ios-text-secondary);">(${roleText})</small></span>
                 ${isCurrentUser ? '<small style="color: var(--ios-text-secondary);">当前</small>' : ''}
             </li>
         `;
@@ -394,7 +402,7 @@ function renderStudentList() {
 
     // 渲染有专项的分组
     Object.keys(groups).sort().forEach(specialty => {
-        html += `<li class="group-header">${specialty}</li>`;
+        html += `<li class="group-header">${escapeHtml(specialty)}</li>`;
         groups[specialty].forEach(s => {
             html += renderStudentItem(s);
         });
@@ -426,10 +434,10 @@ function renderStudentItem(s) {
         creditInfo = `<span class="credit-badge ${creditClass}">${s.remaining_hours}/${s.total_hours}</span>`;
     }
     let infoBadges = '';
-    if (s.gender) infoBadges += `<span class="info-badge">${s.gender}</span>`;
+    if (s.gender) infoBadges += `<span class="info-badge">${escapeHtml(s.gender)}</span>`;
     return `
         <li onclick="editStudent(${s.id})">
-            <span>${s.name}${creditInfo}${infoBadges}</span>
+            <span>${escapeHtml(s.name)}${creditInfo}${infoBadges}</span>
             <span class="delete-btn" onclick="event.stopPropagation(); confirmDeleteStudent(${s.id})">删除</span>
         </li>
     `;
@@ -438,13 +446,13 @@ function renderStudentItem(s) {
 function updateStudentSelect() {
     const select = document.getElementById('schedule-student');
     select.innerHTML = students.map(s =>
-        `<option value="${s.id}">${s.name}</option>`
+        `<option value="${s.id}">${escapeHtml(s.name)}</option>`
     ).join('');
 
     // 更新筛选下拉框
     const filterStudent = document.getElementById('filter-student');
     filterStudent.innerHTML = '<option value="">全部学员</option>' + students.map(s =>
-        `<option value="${s.id}">${s.name}</option>`
+        `<option value="${s.id}">${escapeHtml(s.name)}</option>`
     ).join('');
 }
 
@@ -584,7 +592,7 @@ function renderCourseList() {
     if (!list) return;
     list.innerHTML = courses.map(c => `
         <li onclick="editCourse(${c.id})">
-            <span>${c.name} (${c.duration_minutes}分钟)</span>
+            <span>${escapeHtml(c.name)} (${c.duration_minutes}分钟)</span>
             <span class="delete-btn" onclick="event.stopPropagation(); confirmDeleteCourse(${c.id})">删除</span>
         </li>
     `).join('');
@@ -593,13 +601,13 @@ function renderCourseList() {
 function updateCourseSelect() {
     const select = document.getElementById('schedule-course');
     select.innerHTML = courses.map(c =>
-        `<option value="${c.id}">${c.name} (${c.duration_minutes}分钟)</option>`
+        `<option value="${c.id}">${escapeHtml(c.name)} (${c.duration_minutes}分钟)</option>`
     ).join('');
 
     // 更新筛选下拉框
     const filterCourse = document.getElementById('filter-course');
     filterCourse.innerHTML = '<option value="">全部课程</option>' + courses.map(c =>
-        `<option value="${c.id}">${c.name}</option>`
+        `<option value="${c.id}">${escapeHtml(c.name)}</option>`
     ).join('');
 }
 
@@ -850,7 +858,7 @@ async function showDetailPanel(scheduleId) {
         // 填充模板下拉框
         const templateSelect = document.getElementById('detail-template-select');
         templateSelect.innerHTML = '<option value="">无</option>' + templates.map(t =>
-            `<option value="${t.id}">${t.name}</option>`
+            `<option value="${t.id}">${escapeHtml(t.name)}</option>`
         ).join('');
         templateSelect.value = schedule.template_id || '';
 
@@ -963,8 +971,8 @@ function loadScheduleList() {
             <div class="schedule-list-item" onclick="showDetailPanel(${s.id})">
                 <div class="schedule-list-time">${s.start_time.substring(0, 5)} - ${s.end_time.substring(0, 5)}</div>
                 <div class="schedule-list-info">
-                    <div class="schedule-list-student">${s.student?.name || '未知'}</div>
-                    <div class="schedule-list-course">${s.course?.name || '未知'}</div>
+                    <div class="schedule-list-student">${escapeHtml(s.student?.name || '未知')}</div>
+                    <div class="schedule-list-course">${escapeHtml(s.course?.name || '未知')}</div>
                 </div>
             </div>
         `).join('');
@@ -995,18 +1003,18 @@ function renderTemplateContent(template) {
         container.innerHTML = content.stages.map(stage => `
             <div class="template-stage">
                 <div class="template-stage-header">
-                    <span class="template-stage-name">${stage.name || '未命名阶段'}</span>
+                    <span class="template-stage-name">${escapeHtml(stage.name || '未命名阶段')}</span>
                     <span class="template-stage-duration">${stage.duration || 0}分钟</span>
                 </div>
                 ${stage.exercises?.map(ex => {
                     if (typeof ex === 'string') {
-                        return `<div class="template-exercise">${ex}</div>`;
+                        return `<div class="template-exercise">${escapeHtml(ex)}</div>`;
                     }
                     const sets = ex.sets ? `${ex.sets}组` : '';
                     const reps = ex.reps ? `${ex.reps}次` : '';
                     // 先数量后组数
                     const detail = [reps, sets].filter(Boolean).join(' × ');
-                    return `<div class="template-exercise">${ex.name}${detail ? ` (${detail})` : ''}</div>`;
+                    return `<div class="template-exercise">${escapeHtml(ex.name)}${detail ? ` (${detail})` : ''}</div>`;
                 }).join('') || ''}
             </div>
         `).join('');
@@ -1033,17 +1041,17 @@ function renderTrainingContent(contentStr) {
         container.innerHTML = content.stages.map(stage => `
             <div class="template-stage">
                 <div class="template-stage-header">
-                    <span class="template-stage-name">${stage.name || '未命名阶段'}</span>
+                    <span class="template-stage-name">${escapeHtml(stage.name || '未命名阶段')}</span>
                     <span class="template-stage-duration">${stage.duration || 0}分钟</span>
                 </div>
                 ${stage.exercises?.map(ex => {
                     if (typeof ex === 'string') {
-                        return `<div class="template-exercise">${ex}</div>`;
+                        return `<div class="template-exercise">${escapeHtml(ex)}</div>`;
                     }
                     const sets = ex.sets ? `${ex.sets}组` : '';
                     const reps = ex.reps ? `${ex.reps}次` : '';
                     const detail = [reps, sets].filter(Boolean).join(' × ');
-                    return `<div class="template-exercise">${ex.name}${detail ? ` (${detail})` : ''}</div>`;
+                    return `<div class="template-exercise">${escapeHtml(ex.name)}${detail ? ` (${detail})` : ''}</div>`;
                 }).join('') || ''}
             </div>
         `).join('');

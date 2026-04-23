@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
@@ -10,9 +10,14 @@ router = APIRouter(prefix="/api/courses", tags=["课程管理"])
 
 
 @router.get("", response_model=List[schemas.CourseResponse])
-def list_courses(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def list_courses(
+    skip: int = Query(0, ge=0, description="跳过的记录数"),
+    limit: int = Query(100, ge=1, le=500, description="返回的记录数"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     # 课程是共享资源，所有教练都能看到
-    return db.query(models.Course).all()
+    return db.query(models.Course).offset(skip).limit(limit).all()
 
 
 @router.post("", response_model=schemas.CourseResponse)

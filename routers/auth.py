@@ -29,9 +29,15 @@ def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # 使用统一的错误消息，防止用户枚举
+    error_message = "用户名或密码错误"
+
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if not user:
+        raise HTTPException(status_code=401, detail=error_message)
+
+    if not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail=error_message)
 
     access_token = create_access_token(data={"sub": user.id})
     return {"access_token": access_token, "token_type": "bearer"}

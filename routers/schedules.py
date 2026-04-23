@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
@@ -26,6 +26,8 @@ def calculate_end_time(start_time: str, duration_minutes: int) -> str:
 def list_schedules(
     start_date: date = None,
     end_date: date = None,
+    skip: int = Query(0, ge=0, description="跳过的记录数"),
+    limit: int = Query(500, ge=1, le=1000, description="返回的记录数"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -42,7 +44,7 @@ def list_schedules(
     if end_date:
         query = query.filter(models.Schedule.date <= end_date)
 
-    return query.order_by(models.Schedule.date, models.Schedule.start_time).all()
+    return query.order_by(models.Schedule.date.desc(), models.Schedule.start_time.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("", response_model=schemas.ScheduleResponse)
