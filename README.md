@@ -50,6 +50,28 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 访问 http://localhost:8000
 
+## 软路由 Docker 部署
+
+在软路由的 Docker 管理界面中使用以下命令创建容器：
+
+```bash
+# 创建容器（解析cli命令）
+解析 docker run -d \
+  --name fitness-schedule \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -v /mnt/storage/fitness-schedule/data:/app/data \
+  kerrylu/fitness-schedule:latest
+
+# 或使用 docker-compose 方式
+解析 docker-compose up -d
+```
+
+**注意事项：**
+- 确保软路由已安装 Docker 并拉取镜像
+- 数据目录 `/mnt/storage/fitness-schedule/data` 请根据实际存储路径修改
+- 首次使用需要登录注册账号
+
 ## 初始账号
 
 首次启动需要注册账号，第一个注册的账号自动成为主教练。
