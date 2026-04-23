@@ -62,16 +62,6 @@ class UserResponse(UserBase):
         from_attributes = True
 
 
-class StudentBase(BaseModel):
-    name: str
-    phone: Optional[str] = None
-    gender: Optional[str] = None
-    age: Optional[int] = None
-    specialty: Optional[str] = None
-    rehabilitation: Optional[str] = None
-    note: Optional[str] = None
-
-
 class StudentCreate(StudentBase):
     total_hours: Optional[int] = 0
     remaining_hours: Optional[float] = 0.0
