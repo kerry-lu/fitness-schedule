@@ -1,7 +1,8 @@
 from __future__ import annotations
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import date, time, datetime
 from typing import Optional, Union
+import re
 
 
 class UserBase(BaseModel):
@@ -12,6 +13,44 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     role: Optional[str] = "coach"
+
+    @field_validator('password')
+    @classmethod
+    def password_min_length(cls, v):
+        if len(v) < 6:
+            raise ValueError('密码长度至少6位')
+        return v
+
+    @field_validator('username')
+    @classmethod
+    def username_alphanumeric(cls, v):
+        if not re.match(r'^[a-zA-Z0-9_]+$', v):
+            raise ValueError('用户名只能包含字母、数字和下划线')
+        return v
+
+
+class StudentBase(BaseModel):
+    name: str
+    phone: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+    specialty: Optional[str] = None
+    rehabilitation: Optional[str] = None
+    note: Optional[str] = None
+
+    @field_validator('age')
+    @classmethod
+    def age_range(cls, v):
+        if v is not None and (v < 1 or v > 150):
+            raise ValueError('年龄必须在1-150之间')
+        return v
+
+    @field_validator('phone')
+    @classmethod
+    def phone_format(cls, v):
+        if v and not re.match(r'^1[3-9]\d{9}$', v):
+            raise ValueError('手机号格式不正确')
+        return v
 
 
 class UserResponse(UserBase):
@@ -57,6 +96,13 @@ class CourseBase(BaseModel):
     name: str
     duration_minutes: int
     description: Optional[str] = None
+
+    @field_validator('duration_minutes')
+    @classmethod
+    def duration_positive(cls, v):
+        if v <= 0:
+            raise ValueError('课程时长必须大于0')
+        return v
 
 
 class CourseCreate(CourseBase):

@@ -5,7 +5,8 @@ from typing import List
 from database import get_db
 import models
 import schemas
-from auth import get_current_user, is_head_coach
+from auth import get_current_user
+from authorization import can_access_coach_management
 
 router = APIRouter(prefix="/api/coaches", tags=["教练管理"])
 
@@ -17,7 +18,7 @@ class CoachUpdateRole(BaseModel):
 @router.get("", response_model=List[schemas.UserResponse])
 def list_coaches(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """获取所有教练列表，只有主教练可访问"""
-    if not is_head_coach(current_user):
+    if not can_access_coach_management(current_user):
         raise HTTPException(status_code=403, detail="只有主教练可访问此功能")
     return db.query(models.User).all()
 
@@ -25,7 +26,7 @@ def list_coaches(db: Session = Depends(get_db), current_user: models.User = Depe
 @router.get("/{coach_id}", response_model=schemas.UserResponse)
 def get_coach(coach_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """获取指定教练信息，只有主教练可访问"""
-    if not is_head_coach(current_user):
+    if not can_access_coach_management(current_user):
         raise HTTPException(status_code=403, detail="只有主教练可访问此功能")
     coach = db.query(models.User).filter(models.User.id == coach_id).first()
     if not coach:
@@ -36,7 +37,7 @@ def get_coach(coach_id: int, db: Session = Depends(get_db), current_user: models
 @router.put("/{coach_id}/role", response_model=schemas.UserResponse)
 def update_coach_role(coach_id: int, update_data: CoachUpdateRole, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """更新教练角色，只有主教练可访问"""
-    if not is_head_coach(current_user):
+    if not can_access_coach_management(current_user):
         raise HTTPException(status_code=403, detail="只有主教练可访问此功能")
 
     coach = db.query(models.User).filter(models.User.id == coach_id).first()

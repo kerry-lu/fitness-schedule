@@ -7,7 +7,8 @@ import uuid
 from database import get_db
 import models
 import schemas
-from auth import get_current_user, is_head_coach
+from auth import get_current_user
+from authorization import can_modify_schedule, can_access_coach_management
 
 router = APIRouter(prefix="/api/schedules", tags=["课表管理"])
 
@@ -108,11 +109,6 @@ def create_schedule(schedule_data: schemas.ScheduleCreate, db: Session = Depends
     ).filter(models.Schedule.id == db_schedule.id).first()
 
     return db_schedule
-
-
-def can_modify_schedule(schedule: models.Schedule, current_user: models.User) -> bool:
-    """检查是否可以修改课程安排：创建者或主教练"""
-    return schedule.user_id == current_user.id or is_head_coach(current_user)
 
 
 @router.get("/{schedule_id}", response_model=schemas.ScheduleResponse)

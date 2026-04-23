@@ -5,18 +5,14 @@ from typing import List
 from database import get_db
 import models
 import schemas
-from auth import get_current_user, is_head_coach
+from auth import get_current_user
+from authorization import can_modify_student
 
 router = APIRouter(prefix="/api/students", tags=["学员管理"])
 
 
 class CreditAdjustRequest(BaseModel):
     hours: int  # 正数增加，负数减少
-
-
-def can_modify_student(student: models.Student, current_user: models.User) -> bool:
-    """检查是否可以修改学员：创建者或主教练"""
-    return student.user_id == current_user.id or is_head_coach(current_user)
 
 
 @router.get("", response_model=List[schemas.StudentResponse])
