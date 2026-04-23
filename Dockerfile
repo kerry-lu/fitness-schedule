@@ -12,6 +12,10 @@ COPY . .
 # 创建数据库目录
 RUN mkdir -p /app/data
 
+# 设置环境变量
+ENV SECRET_KEY=change-me-in-production
+ENV TZ=Asia/Shanghai
+
 # 暴露端口
 EXPOSE 8000
 
