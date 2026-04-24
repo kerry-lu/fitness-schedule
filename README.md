@@ -92,7 +92,81 @@ python migrations/create.py add_new_field
 
 ## 软路由 Docker 部署
 
-### 方式一：使用 GitHub 自动构建（推荐）
+### 第一步：在 OpenWrt 软路由上安装 Docker
+
+#### 1. 更新软件包列表
+
+```bash
+opkg update
+```
+
+#### 2. 安装 Docker 及相关组件
+
+```bash
+opkg install docker docker-compose luci-app-docker
+```
+
+如果提示找不到包，可能需要添加 Docker 仓库：
+
+```bash
+# 添加 Docker 仓库（如果系统没有）
+echo "src/gz docker https://download.docker.com/linux/containers/docker-ce" >> /etc/opkg/customfeeds.conf
+opkg update
+opkg install docker docker-compose
+```
+
+#### 3. 启动 Docker 服务
+
+```bash
+# 启动 Docker
+/etc/init.d/docker start
+
+# 设置开机自启
+/etc/init.d/docker enable
+```
+
+#### 4. 验证 Docker 安装
+
+```bash
+docker version
+docker info
+```
+
+#### 5. 配置 Docker 存储路径（重要！）
+
+软路由通常存储空间有限，建议将 Docker 数据存储到外接存储（如 U 盘或 SATA 盘）。
+
+```bash
+# 格式化存储设备（假设挂载到 /mnt/sda1）
+mkfs.ext4 /dev/sda1
+mount /dev/sda1 /mnt/sda1
+
+# 创建 Docker 数据目录
+mkdir -p /mnt/sda1/docker
+
+# 修改 Docker 数据目录
+mkdir -p /etc/docker
+cat > /etc/docker/daemon.json << EOF
+{
+  "data-root": "/mnt/sda1/docker"
+}
+EOF
+
+# 重启 Docker
+/etc/init.d/docker restart
+```
+
+#### 6. 验证存储配置
+
+```bash
+docker info | grep "Docker Root Dir"
+```
+
+---
+
+### 第二步：拉取并运行容器
+
+#### 方式一：使用 GitHub 自动构建（推荐）
 
 1. **配置 Docker Hub 密钥**
    - 在 GitHub 仓库 Settings → Secrets 中添加：
@@ -120,7 +194,7 @@ python migrations/create.py add_new_field
      kerrylu/fitness-schedule:latest
    ```
 
-### 方式二：本地构建镜像
+#### 方式二：本地构建镜像（在有 Docker 的电脑上）
 
 在有 Docker 的电脑上：
 
@@ -151,21 +225,30 @@ docker run -d \
   kerrylu/fitness-schedule:latest
 ```
 
-### 软路由解析cli命令示例
+#### 软路由拉取并运行命令
 
 ```bash
 # 拉取镜像
 docker pull kerrylu/fitness-schedule:latest
 
-# 创建容器
-解析cli run -d --name fitness-schedule --restart unless-stopped -p 8000:8000 -e SECRET_KEY=your-secret-key -v /mnt/storage/fitness-schedule/data:/app/data kerrylu/fitness-schedule:latest
+# 创建数据目录（根据你的存储路径调整）
+mkdir -p /mnt/sda1/fitness-schedule/data
+
+# 运行容器
+docker run -d \
+  --name fitness-schedule \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -e SECRET_KEY=your-production-secret-key \
+  -v /mnt/sda1/fitness-schedule/data:/app/data \
+  kerrylu/fitness-schedule:latest
 ```
 
 **注意事项：**
-- 确保软路由已安装 Docker
-- 数据目录 `/mnt/storage/fitness-schedule/data` 请根据实际存储路径修改
+- 存储路径 `/mnt/sda1` 根据你的实际挂载情况调整
 - 首次使用需要登录注册账号
 - **必须设置 `SECRET_KEY` 环境变量**
+- 如果需要从 U 盘启动，确保 U 盘有足够的读写速度
 
 ## 初始账号
 
