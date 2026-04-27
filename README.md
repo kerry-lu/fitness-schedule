@@ -134,8 +134,8 @@ export GITHUB_TOKEN=ghp_your_token_here
 cp fitness_schedule.db fitness_schedule.db.backup
 
 # 2. 下载升级包并解压
-wget https://github.com/kerry-lu/fitness-schedule/releases/download/v1.0.1/fitness_schedule_v1.0.1.zip
-unzip -o fitness_schedule_v1.0.1.zip
+wget https://github.com/kerry-lu/fitness-schedule/releases/download/v1.0.7/updates.zip
+unzip -o updates.zip
 
 # 3. 重启服务
 ```
