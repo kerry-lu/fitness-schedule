@@ -1,6 +1,6 @@
 # 版本信息
-FRONTEND_VERSION = "1.0.3"
-BACKEND_VERSION = "1.0.3"
+FRONTEND_VERSION = "1.0.4"
+BACKEND_VERSION = "1.0.4"
 
 # 升级目录
 UPDATES_DIR = "updates"
