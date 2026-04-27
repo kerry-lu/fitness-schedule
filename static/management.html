@@ -22,6 +22,7 @@
             <button class="tab-btn active" onclick="showMgmtTab('students')">学员</button>
             <button class="tab-btn" onclick="showMgmtTab('courses')">课程</button>
             <button class="tab-btn" onclick="showMgmtTab('templates')">模板</button>
+            <button class="tab-btn" onclick="showMgmtTab('system')">系统</button>
         </div>
 
         <!-- 学员管理 -->
@@ -54,6 +55,85 @@
                     <button onclick="showTemplateModal()" class="btn btn-primary btn-small">+ 新增</button>
                 </div>
                 <ul id="template-list" class="list"></ul>
+            </div>
+        </div>
+
+        <!-- 系统管理 -->
+        <div id="tab-system" class="mgmt-tab">
+            <!-- 版本信息 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>当前版本</h3>
+                </div>
+                <div style="padding: 15px; background: var(--ios-card); border-radius: 12px; margin-bottom: 15px;">
+                    <p><strong>前端版本：</strong><span id="version-frontend">-</span></p>
+                    <p><strong>后端版本：</strong><span id="version-backend">-</span></p>
+                    <button onclick="checkUpgradeStatus()" class="btn btn-secondary btn-small" style="margin-top: 10px;">检查更新</button>
+                </div>
+            </div>
+
+            <!-- 升级功能 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>应用升级</h3>
+                </div>
+                <div id="upgrade-panel" style="padding: 15px; background: var(--ios-card); border-radius: 12px; margin-bottom: 15px;">
+                    <div id="upgrade-status">正在检查...</div>
+                    <div id="upgrade-files" style="margin-top: 10px; display: none;">
+                        <p style="color: var(--ios-orange);">发现新版本：<span id="update-version"></span></p>
+                        <p style="font-size: 12px; color: var(--ios-text-secondary);">将升级以下文件（数据库不受影响）：</p>
+                        <ul id="update-files-list" style="font-size: 12px; max-height: 150px; overflow-y: auto;"></ul>
+                    </div>
+                    <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="createBackup()" class="btn btn-secondary btn-small">创建备份</button>
+                        <button onclick="applyUpgrade()" id="btn-apply-upgrade" class="btn btn-primary btn-small" style="display: none;">应用升级</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GitHub 在线升级 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>GitHub 在线升级</h3>
+                </div>
+                <div style="padding: 15px; background: var(--ios-card); border-radius: 12px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label>GitHub 仓库</label>
+                        <input type="text" id="github-repo" placeholder="例如: username/fitness_schedule" style="width: 100%;">
+                        <p style="font-size: 11px; color: var(--ios-text-secondary); margin-top: 5px;">格式: owner/repo</p>
+                    </div>
+                    <button onclick="checkGitHubReleases()" class="btn btn-secondary btn-small">检查发布版本</button>
+                    <button onclick="saveGitHubConfig()" class="btn btn-primary btn-small">保存配置</button>
+
+                    <div id="github-releases" style="margin-top: 15px; display: none;">
+                        <h4 style="margin: 10px 0;">可用版本：</h4>
+                        <div id="github-releases-list"></div>
+                    </div>
+                    <div id="github-latest-info" style="margin-top: 10px;"></div>
+                </div>
+            </div>
+
+            <!-- 备份管理 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>备份管理</h3>
+                </div>
+                <div style="padding: 15px; background: var(--ios-card); border-radius: 12px;">
+                    <div id="backup-list"></div>
+                    <button onclick="loadBackups()" class="btn btn-secondary btn-small" style="margin-top: 10px;">刷新列表</button>
+                </div>
+            </div>
+
+            <!-- 数据库迁移（保留） -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>数据库升级</h3>
+                </div>
+                <div style="padding: 15px; background: var(--ios-card); border-radius: 12px; margin-bottom: 15px;">
+                    <div id="migration-status"></div>
+                    <button onclick="checkMigrationStatus()" class="btn btn-secondary btn-small" style="margin-top: 10px;">刷新状态</button>
+                    <button onclick="runMigrations()" id="btn-run-migrations" class="btn btn-primary btn-small" style="margin-top: 10px; display: none;">执行升级</button>
+                </div>
             </div>
         </div>
     </div>
@@ -286,7 +366,7 @@
                 const isLow = s.remaining_hours <= 3 && s.remaining_hours > 0;
                 const isEmpty = s.remaining_hours <= 0;
                 const creditClass = isEmpty ? 'credit-empty' : (isLow ? 'credit-low' : '');
-                creditInfo = `<span class="credit-badge ${creditClass}">${s.remaining_hours}/${s.total_hours}</span>`;
+                creditInfo = `<span class="credit-badge ${creditClass}">${Math.round(s.remaining_hours)}/${s.total_hours}</span>`;
             }
             return `<li onclick="editStudent(${s.id})">
                 <span>${s.name}${creditInfo}</span>
@@ -601,6 +681,254 @@
             } catch (err) { alert(err.message); }
         }
 
+        // 数据库迁移
+        async function checkMigrationStatus() {
+            try {
+                const status = await apiRequest('/api/migrations/status');
+                const statusDiv = document.getElementById('migration-status');
+                const runBtn = document.getElementById('btn-run-migrations');
+
+                let html = `<p><strong>当前版本：</strong>${status.applied.length > 0 ? status.applied[status.applied.length - 1] : '未知'}</p>`;
+                html += `<p><strong>已应用迁移：</strong>${status.applied.length} 个</p>`;
+
+                if (status.pending.length > 0) {
+                    html += `<p style="color: var(--ios-orange);"><strong>有 ${status.pending.length} 个待应用迁移：</strong></p>`;
+                    html += `<ul style="margin: 5px 0; padding-left: 20px;">`;
+                    status.pending.forEach(p => {
+                        html += `<li>${p.version}: ${p.name}</li>`;
+                    });
+                    html += `</ul>`;
+                    runBtn.style.display = 'inline-block';
+                } else {
+                    html += `<p style="color: var(--ios-green);"><strong>已是最新版本</strong></p>`;
+                    runBtn.style.display = 'none';
+                }
+
+                statusDiv.innerHTML = html;
+            } catch (err) {
+                document.getElementById('migration-status').innerHTML = `<p style="color: var(--ios-red);">获取迁移状态失败</p>`;
+            }
+        }
+
+        async function runMigrations() {
+            if (!confirm('确定要执行数据库升级吗？')) return;
+            try {
+                const result = await apiRequest('/api/migrations/migrate', { method: 'POST' });
+                alert(result.message);
+                checkMigrationStatus();
+            } catch (err) {
+                alert('升级失败: ' + err.message);
+            }
+        }
+
+        // ==================== 应用升级 ====================
+        async function checkUpgradeStatus() {
+            try {
+                const status = document.getElementById('upgrade-status');
+                status.innerHTML = '<p>正在检查版本信息...</p>';
+
+                const res = await apiRequest('/api/upgrade/versions');
+                document.getElementById('version-frontend').textContent = res.frontend;
+                document.getElementById('version-backend').textContent = res.backend;
+
+                if (res.has_update) {
+                    status.innerHTML = '<p style="color: var(--ios-green);">发现新版本可用！</p>';
+                    document.getElementById('update-version').textContent = res.update_info.version;
+                    document.getElementById('upgrade-files').style.display = 'block';
+                    document.getElementById('btn-apply-upgrade').style.display = 'inline-block';
+                    await loadUpdateFiles();
+                } else {
+                    status.innerHTML = '<p style="color: var(--ios-green);">已是最新版本</p>';
+                    document.getElementById('upgrade-files').style.display = 'none';
+                    document.getElementById('btn-apply-upgrade').style.display = 'none';
+                }
+            } catch (err) {
+                document.getElementById('upgrade-status').innerHTML = '<p style="color: var(--ios-red);">检查更新失败</p>';
+            }
+        }
+
+        async function loadUpdateFiles() {
+            try {
+                const files = await apiRequest('/api/upgrade/update-files');
+                const list = document.getElementById('update-files-list');
+                list.innerHTML = files.map(f => `<li>${f.path} (${formatBytes(f.size)})</li>`).join('');
+            } catch (err) {
+                console.error('获取更新文件列表失败:', err);
+            }
+        }
+
+        async function createBackup() {
+            if (!confirm('确定要创建当前版本的备份吗？')) return;
+            try {
+                const result = await apiRequest('/api/upgrade/backup', { method: 'POST' });
+                alert(`备份创建成功：${result.name}`);
+                loadBackups();
+            } catch (err) {
+                alert('备份失败：' + err.message);
+            }
+        }
+
+        async function loadBackups() {
+            try {
+                const backups = await apiRequest('/api/upgrade/backups');
+                const container = document.getElementById('backup-list');
+                if (backups.length === 0) {
+                    container.innerHTML = '<p style="color: var(--ios-text-secondary);">暂无备份</p>';
+                    return;
+                }
+                container.innerHTML = backups.map(b => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--ios-border);">
+                        <div>
+                            <div style="font-weight: 500;">${b.name}</div>
+                            <div style="font-size: 12px; color: var(--ios-text-secondary);">${formatBytes(b.size)}</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="restoreBackup('${b.name}')" class="btn btn-secondary btn-small">恢复</button>
+                            <button onclick="deleteBackup('${b.name}')" class="btn btn-danger btn-small">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('backup-list').innerHTML = '<p style="color: var(--ios-red);">获取备份列表失败</p>';
+            }
+        }
+
+        async function restoreBackup(name) {
+            if (!confirm(`确定要恢复备份 "${name}" 吗？这将覆盖当前文件。`)) return;
+            if (!confirm('警告：恢复后需要重启服务才能生效。确定继续吗？')) return;
+            try {
+                await apiRequest(`/api/upgrade/restore/${name}`, { method: 'POST' });
+                alert('恢复成功！请手动重启服务。');
+            } catch (err) {
+                alert('恢复失败：' + err.message);
+            }
+        }
+
+        async function deleteBackup(name) {
+            if (!confirm(`确定要删除备份 "${name}" 吗？`)) return;
+            try {
+                await apiRequest(`/api/upgrade/backups/${name}`, { method: 'DELETE' });
+                loadBackups();
+            } catch (err) {
+                alert('删除失败：' + err.message);
+            }
+        }
+
+        async function applyUpgrade() {
+            if (!confirm('确定要应用升级吗？\n\n注意：\n1. 将自动创建备份\n2. 数据库不会被修改\n3. 升级后需要刷新页面')) return;
+            try {
+                const result = await apiRequest('/api/upgrade/apply', { method: 'POST' });
+                alert(`升级成功！\n已创建备份：${result.backup}\n已升级文件数：${result.copied_files}\n\n请刷新页面或重新登录。`);
+                checkUpgradeStatus();
+            } catch (err) {
+                alert('升级失败：' + err.message);
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        // ==================== GitHub 在线升级 ====================
+        async function loadGitHubConfig() {
+            try {
+                const config = await apiRequest('/api/upgrade/github/config');
+                document.getElementById('github-repo').value = config.repo || '';
+            } catch (err) {
+                console.error('获取GitHub配置失败:', err);
+            }
+        }
+
+        async function saveGitHubConfig() {
+            const repo = document.getElementById('github-repo').value.trim();
+            if (!repo) {
+                alert('请输入GitHub仓库地址');
+                return;
+            }
+            if (!repo.includes('/')) {
+                alert('仓库格式应为 owner/repo');
+                return;
+            }
+            try {
+                await apiRequest('/api/upgrade/github/config', {
+                    method: 'POST',
+                    body: JSON.stringify({ repo: repo, has_token: false })
+                });
+                alert('配置已保存，请在服务器环境变量中设置 GITHUB_TOKEN 以提高API限制');
+            } catch (err) {
+                alert('保存失败：' + err.message);
+            }
+        }
+
+        async function checkGitHubReleases() {
+            const repo = document.getElementById('github-repo').value.trim();
+            if (!repo) {
+                alert('请先配置GitHub仓库');
+                return;
+            }
+
+            const container = document.getElementById('github-releases');
+            const listDiv = document.getElementById('github-releases-list');
+            const infoDiv = document.getElementById('github-latest-info');
+
+            infoDiv.innerHTML = '<p style="color: var(--ios-text-secondary);">正在检查...</p>';
+
+            try {
+                const latest = await apiRequest('/api/upgrade/github/latest');
+
+                if (latest.is_newer) {
+                    infoDiv.innerHTML = `<p style="color: var(--ios-green);">
+                        发现新版本：<strong>${latest.tag_name}</strong><br>
+                        ${latest.name}<br>
+                        <span style="font-size: 12px;">发布于：${new Date(latest.published_at).toLocaleDateString('zh-CN')}</span>
+                    </p>`;
+                } else {
+                    infoDiv.innerHTML = `<p style="color: var(--ios-text-secondary);">
+                        当前已是最新版本 (${latest.current_version})
+                    </p>`;
+                }
+
+                // 获取所有releases
+                const releases = await apiRequest('/api/upgrade/github/releases');
+                if (releases.length > 0) {
+                    container.style.display = 'block';
+                    listDiv.innerHTML = releases.map(r => `
+                        <div style="padding: 10px; border-bottom: 1px solid var(--ios-border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>${r.name || r.tag_name}</strong>
+                                    <span style="font-size: 12px; color: var(--ios-text-secondary); margin-left: 8px;">${r.tag_name}</span>
+                                </div>
+                                <button onclick="downloadGitHubRelease('${r.tag_name}')" class="btn btn-primary btn-small">下载</button>
+                            </div>
+                            ${r.body ? `<p style="font-size: 12px; color: var(--ios-text-secondary); margin-top: 5px; white-space: pre-wrap;">${escapeHtml(r.body.substring(0, 100))}...</p>` : ''}
+                            <p style="font-size: 11px; color: var(--ios-text-secondary);">发布于 ${new Date(r.published_at).toLocaleDateString('zh-CN')}</p>
+                        </div>
+                    `).join('');
+                }
+            } catch (err) {
+                infoDiv.innerHTML = `<p style="color: var(--ios-red);">检查失败：${err.message}</p>`;
+            }
+        }
+
+        async function downloadGitHubRelease(tagName) {
+            if (!confirm(`确定要下载版本 ${tagName} 吗？\n\n下载后将自动应用升级，请注意创建备份。`)) return;
+
+            const infoDiv = document.getElementById('github-latest-info');
+            infoDiv.innerHTML = '<p style="color: var(--ios-orange);">正在下载...</p>';
+
+            try {
+                const result = await apiRequest(`/api/upgrade/github/download/${tagName}`, { method: 'POST' });
+                infoDiv.innerHTML = `<p style="color: var(--ios-green);">下载成功！版本：${result.version}</p>`;
+                // 刷新升级状态
+                checkUpgradeStatus();
+            } catch (err) {
+                infoDiv.innerHTML = `<p style="color: var(--ios-red);">下载失败：${err.message}</p>`;
+            }
+        }
+
         // 初始化
         async function init() {
             if (!await checkAuth()) return;
@@ -608,6 +936,10 @@
             document.getElementById('student-form').addEventListener('submit', saveStudent);
             document.getElementById('course-form').addEventListener('submit', saveCourse);
             document.getElementById('template-form').addEventListener('submit', saveTemplate);
+            checkMigrationStatus();
+            checkUpgradeStatus();
+            loadBackups();
+            loadGitHubConfig();
         }
 
         document.addEventListener('click', function(e) {

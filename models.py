@@ -84,6 +84,7 @@ class Schedule(Base):
     # 重复相关字段
     repeat_type = Column(String, default="none")  # none, daily, weekly, monthly
     repeat_end_date = Column(Date, nullable=True)
+    repeat_days = Column(String, nullable=True)  # JSON格式，存储周几重复，如 "[1,3,5]"
     series_id = Column(String, nullable=True)  # 同一系列课程共享此 ID
     created_at = Column(DateTime, default=datetime.utcnow)
 

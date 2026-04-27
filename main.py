@@ -11,12 +11,12 @@ import routers.courses
 import routers.schedules
 import routers.templates
 import routers.coaches
+import routers.upgrade
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="体能教练课表系统")
-
 
 # 挂载路由
 app.include_router(routers.auth.router)
@@ -25,6 +25,7 @@ app.include_router(routers.courses.router)
 app.include_router(routers.schedules.router)
 app.include_router(routers.templates.router)
 app.include_router(routers.coaches.router)
+app.include_router(routers.upgrade.router)
 
 # 静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -75,3 +76,39 @@ def login_page():
 @app.get("/management")
 def management_page():
     return FileResponse("static/management.html")
+
+
+# 迁移 API
+@app.get("/api/migrations/status")
+def get_migration_status():
+    """获取迁移状态"""
+    from migrations.manager import MigrationManager
+    manager = MigrationManager()
+    applied = manager.get_applied_migrations()
+    pending = manager.get_pending_migrations()
+    return {
+        "applied": applied,
+        "pending": [{"version": v, "name": n} for v, n in pending],
+        "all_applied": len(pending) == 0
+    }
+
+
+@app.post("/api/migrations/migrate")
+def run_migrations():
+    """执行待应用的迁移"""
+    from migrations.manager import MigrationManager
+    manager = MigrationManager()
+    pending = manager.get_pending_migrations()
+    if not pending:
+        return {"message": "没有待应用的迁移", "applied": [], "pending": []}
+
+    applied = []
+    for version, name in pending:
+        manager.apply_migration(version)
+        applied.append({"version": version, "name": name})
+
+    return {
+        "message": f"已应用 {len(applied)} 个迁移",
+        "applied": applied,
+        "pending": manager.get_pending_migrations()
+    }

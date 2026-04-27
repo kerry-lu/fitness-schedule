@@ -982,13 +982,43 @@ body {
     overflow: hidden;
 }
 
-/* 事件颜色 */
+/* 事件颜色 - 按教练区分 */
+.fc-event.coach-1 { background: var(--ios-blue) !important; }
+.fc-event.coach-2 { background: var(--ios-green) !important; }
+.fc-event.coach-3 { background: var(--ios-orange) !important; }
+.fc-event.coach-4 { background: var(--ios-red) !important; }
+.fc-event.coach-5 { background: var(--ios-purple) !important; }
+.fc-event.coach-6 { background: var(--ios-teal) !important; }
+.fc-event.coach-7 { background: #E91E63 !important; }
+.fc-event.coach-8 { background: #9C27B0 !important; }
+
+/* 重复课程增加边框标识 */
 .fc-event.recurring {
-    background: var(--ios-purple) !important;
+    border-left: 4px solid var(--ios-purple) !important;
 }
 
-.fc-event.template- {
-    background: var(--ios-teal) !important;
+/* 有模板的课程增加边框标识 */
+.fc-event.has-template {
+    border-left: 4px solid var(--ios-teal) !important;
+}
+
+/* 已完成课程变灰 */
+.fc-event.status-completed {
+    opacity: 0.5 !important;
+    filter: grayscale(80%) !important;
+}
+
+/* 缺席课程 */
+.fc-event.status-absent {
+    opacity: 0.4 !important;
+    background: var(--ios-gray) !important;
+}
+
+/* 已取消课程 */
+.fc-event.status-cancelled {
+    opacity: 0.3 !important;
+    background: var(--ios-gray-lighter) !important;
+    text-decoration: line-through !important;
 }
 
 /* 滑出面板 */
@@ -1137,6 +1167,43 @@ body {
 .slide-overlay.active {
     opacity: 1;
     visibility: visible;
+}
+
+/* ==================== 管理页面标签页 ==================== */
+.management-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--ios-gray-lighter);
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--ios-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: white;
+    color: var(--ios-blue);
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mgmt-tab {
+    display: none;
+}
+
+.mgmt-tab.active {
+    display: block;
 }
 
 /* ==================== 响应式布局 ==================== */

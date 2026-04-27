@@ -7,8 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>跃界-课表</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet'>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script src='/static/fullcalendar.min.js'></script>
 </head>
 <body>
     <nav class="navbar">
@@ -58,6 +57,7 @@
                         <div class="detail-info">
                             <p><span class="label">学员：</span><span id="detail-student" class="value">-</span></p>
                             <p><span class="label">课程：</span><span id="detail-course" class="value">-</span></p>
+                            <p><span class="label">教练：</span><span id="detail-coach" class="value">-</span></p>
                             <p><span class="label">日期：</span><span id="detail-date" class="value">-</span></p>
                             <p><span class="label">时间：</span><span id="detail-time" class="value">-</span></p>
                         </div>
@@ -301,6 +301,12 @@
                     <select id="schedule-course" required></select>
                 </div>
                 <div class="form-group">
+                    <label>教练</label>
+                    <select id="schedule-coach">
+                        <option value="">当前账号</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>训练模板</label>
                     <select id="schedule-template">
                         <option value="">无</option>
@@ -319,6 +325,33 @@
                         <button type="button" class="repeat-option" data-repeat="monthly">每月</button>
                     </div>
                     <input type="hidden" id="schedule-repeat-type" value="none">
+                    <!-- 每周重复时选择周几 -->
+                    <div class="repeat-days-container" id="repeat-days-container" style="display: none; margin-top: 10px;">
+                        <label style="font-size: 13px; color: var(--ios-text-secondary);">选择周几</label>
+                        <div class="repeat-days-options" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
+                            <label style="display: flex; align-items: center; gap: 3px; font-size: 14px;">
+                                <input type="checkbox" class="repeat-day" value="1"> 一
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 3px; font-size: 14px;">
+                                <input type="checkbox" class="repeat-day" value="2"> 二
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 3px; font-size: 14px;">
+                                <input type="checkbox" class="repeat-day" value="3"> 三
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 3px; font-size: 14px;">
+                                <input type="checkbox" class="repeat-day" value="4"> 四
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 3px; font-size: 14px;">
+                                <input type="checkbox" class="repeat-day" value="5"> 五
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 3px; font-size: 14px;">
+                                <input type="checkbox" class="repeat-day" value="6"> 六
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 3px; font-size: 14px;">
+                                <input type="checkbox" class="repeat-day" value="7"> 日
+                            </label>
+                        </div>
+                    </div>
                     <div class="repeat-end-date" id="repeat-end-date-container" style="display: none;">
                         <label style="font-size: 13px; color: var(--ios-text-secondary);">重复结束日期</label>
                         <input type="date" id="schedule-repeat-end-date" style="margin-top: 5px;">

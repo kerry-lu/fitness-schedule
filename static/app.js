@@ -369,18 +369,29 @@ async function loadCoaches() {
         updateCoachFilter();
     }
 
-    // 只有主教练能看到教练管理模块
-    if (currentUser?.role !== 'head_coach') {
-        document.getElementById('coach-section').style.display = 'none';
-    } else {
-        document.getElementById('coach-section').style.display = 'block';
-        renderCoachList();
+    // 只有主教练能看到教练管理模块（检查元素是否存在）
+    const coachSection = document.getElementById('coach-section');
+    if (coachSection) {
+        if (currentUser?.role !== 'head_coach') {
+            coachSection.style.display = 'none';
+        } else {
+            coachSection.style.display = 'block';
+            renderCoachList();
+        }
     }
 }
 
 function updateCoachFilter() {
     const filterCoach = document.getElementById('filter-coach');
     filterCoach.innerHTML = '<option value="">全部教练</option>' + coaches.map(c =>
+        `<option value="${c.id}">${escapeHtml(c.name)}${c.role === 'head_coach' ? ' (主教练)' : ''}</option>`
+    ).join('');
+}
+
+function updateCoachSelect() {
+    const coachSelect = document.getElementById('schedule-coach');
+    if (!coachSelect) return;
+    coachSelect.innerHTML = '<option value="">当前账号</option>' + coaches.map(c =>
         `<option value="${c.id}">${escapeHtml(c.name)}${c.role === 'head_coach' ? ' (主教练)' : ''}</option>`
     ).join('');
 }
@@ -486,7 +497,7 @@ function renderStudentItem(s) {
         const isLow = s.remaining_hours <= 3 && s.remaining_hours > 0;
         const isEmpty = s.remaining_hours <= 0;
         const creditClass = isEmpty ? 'credit-empty' : (isLow ? 'credit-low' : '');
-        creditInfo = `<span class="credit-badge ${creditClass}">${s.remaining_hours}/${s.total_hours}</span>`;
+        creditInfo = `<span class="credit-badge ${creditClass}">${Math.round(s.remaining_hours)}/${s.total_hours}</span>`;
     }
     let infoBadges = '';
     if (s.gender) infoBadges += `<span class="info-badge">${escapeHtml(s.gender)}</span>`;
@@ -776,14 +787,22 @@ function showScheduleModal(dateStr = null, scheduleId = null, time = null) {
     document.getElementById('schedule-repeat-type').value = 'none';
     document.getElementById('repeat-end-date-container').style.display = 'none';
     document.getElementById('schedule-repeat-end-date').value = '';
+    document.getElementById('repeat-days-container').style.display = 'none';
 
     // 重置重复选项
     document.querySelectorAll('.repeat-option').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.repeat === 'none');
     });
 
+    // 重置周几选项
+    document.querySelectorAll('.repeat-day').forEach(cb => cb.checked = false);
+
     // 确保模板下拉框已填充
     updateTemplateSelect();
+
+    // 更新教练下拉框并默认选择当前账号
+    updateCoachSelect();
+    document.getElementById('schedule-coach').value = currentUser?.id || '';
 
     initTimeSelect();
 
@@ -814,6 +833,10 @@ async function editSchedule(id) {
         document.getElementById('schedule-template').value = schedule.template_id || '';
         document.getElementById('schedule-note').value = schedule.note || '';
 
+        // 教练选择
+        updateCoachSelect();
+        document.getElementById('schedule-coach').value = schedule.user_id || '';
+
         initTimeSelect();
         const startTime = schedule.start_time.substring(0, 5);
         document.getElementById('schedule-start-time').value = startTime;
@@ -829,6 +852,21 @@ async function editSchedule(id) {
         document.getElementById('schedule-repeat-end-date').value =
             schedule.repeat_end_date || '';
 
+        // 周几选项
+        document.getElementById('repeat-days-container').style.display =
+            repeatType === 'weekly' ? 'block' : 'none';
+        // 重置并设置周几选项
+        document.querySelectorAll('.repeat-day').forEach(cb => cb.checked = false);
+        if (schedule.repeat_days) {
+            try {
+                const days = JSON.parse(schedule.repeat_days);
+                days.forEach(day => {
+                    const cb = document.querySelector(`.repeat-day[value="${day}"]`);
+                    if (cb) cb.checked = true;
+                });
+            } catch (e) {}
+        }
+
         document.getElementById('schedule-modal-title').textContent = '编辑课程安排';
         document.getElementById('delete-schedule-btn').style.display = 'block';
     } catch (err) {
@@ -839,15 +877,25 @@ async function editSchedule(id) {
 async function saveSchedule(e) {
     e.preventDefault();
     const id = document.getElementById('schedule-id').value;
+
+    // 获取周几选择
+    const repeatDays = [];
+    document.querySelectorAll('.repeat-day:checked').forEach(cb => {
+        repeatDays.push(parseInt(cb.value));
+    });
+
+    const coachId = document.getElementById('schedule-coach').value;
     const data = {
         student_id: parseInt(document.getElementById('schedule-student').value),
         course_id: parseInt(document.getElementById('schedule-course').value),
+        coach_id: coachId ? parseInt(coachId) : null,
         date: document.getElementById('schedule-date').value,
         start_time: document.getElementById('schedule-start-time').value,
         note: document.getElementById('schedule-note').value,
         template_id: document.getElementById('schedule-template').value || null,
         repeat_type: document.getElementById('schedule-repeat-type').value,
-        repeat_end_date: document.getElementById('schedule-repeat-end-date').value || null
+        repeat_end_date: document.getElementById('schedule-repeat-end-date').value || null,
+        repeat_days: repeatDays.length > 0 ? JSON.stringify(repeatDays) : null
     };
 
     try {
@@ -900,6 +948,8 @@ async function showDetailPanel(scheduleId) {
             schedule.student?.name || '未知';
         document.getElementById('detail-course').textContent =
             schedule.course?.name || '未知';
+        document.getElementById('detail-coach').textContent =
+            schedule.coach?.name || (schedule.user_id ? `教练 #${schedule.user_id}` : '未知');
 
         const date = new Date(schedule.date);
         document.getElementById('detail-date').textContent =
@@ -1248,11 +1298,6 @@ async function saveTrainingContent() {
     }
 }
 
-function closeDetailPanel() {
-    document.getElementById('detail-panel').classList.remove('active');
-    currentScheduleId = null;
-}
-
 function editScheduleFromPanel() {
     if (currentScheduleId) {
         showScheduleModal(null, currentScheduleId);
@@ -1261,10 +1306,24 @@ function editScheduleFromPanel() {
 
 async function deleteScheduleFromPanel() {
     if (!currentScheduleId) return;
-    if (!confirm('确定要删除这个课程安排吗？')) return;
 
     try {
-        await apiRequest(`/api/schedules/${currentScheduleId}`, { method: 'DELETE' });
+        const schedule = await apiRequest(`/api/schedules/${currentScheduleId}`);
+        let deleteUrl = `/api/schedules/${currentScheduleId}`;
+        let confirmMessage = '确定要删除这个课程安排吗？';
+
+        if (schedule.series_id) {
+            // 是系列课程，让用户选择删除方式
+            const deleteAll = confirm('该课程属于一个重复系列。\n\n点击"确定"删除整个系列的所有课程\n点击"取消"只删除这一节');
+            if (deleteAll) {
+                deleteUrl = `/api/schedules/${currentScheduleId}/series`;
+                confirmMessage = '确定要删除整个重复系列的所有课程吗？';
+            }
+        }
+
+        if (!confirm(confirmMessage)) return;
+
+        await apiRequest(deleteUrl, { method: 'DELETE' });
         closeDetailPanel();
         refreshCalendar();
     } catch (err) {
@@ -1323,7 +1382,7 @@ async function submitAttendance(e) {
         closeDetailPanel();
         refreshCalendar();
         loadStudents();
-        alert(`课程已完成！剩余课时: ${result.remaining_hours}`);
+        alert(`课程已完成！剩余课时: ${Math.round(result.remaining_hours)}`);
     } catch (err) {
         alert(err.message);
     }
@@ -1362,10 +1421,23 @@ function initCalendar() {
         },
         events: loadCalendarEvents,
         eventContent: function(arg) {
+            const start = arg.event.start;
+            const end = arg.event.end;
+            let timeStr = '';
+            if (start && end) {
+                const startTime = start.toTimeString().substring(0, 5);
+                const endTime = end.toTimeString().substring(0, 5);
+                timeStr = `${startTime}-${endTime}`;
+            } else {
+                timeStr = arg.timeText;
+            }
+            // 检查是否有备注
+            const hasNote = arg.event.extendedProps.note;
+            const noteIcon = hasNote ? '<span style="color: var(--ios-orange); font-weight: bold; margin-left: 4px;">●</span>' : '';
             return {
                 html: `<div class="fc-event-main-content">
-                    <div class="fc-event-title">${arg.event.title}</div>
-                    <div class="fc-event-time">${arg.timeText}</div>
+                    <div class="fc-event-title">${arg.event.title}${noteIcon}</div>
+                    <div class="fc-event-time">${timeStr}</div>
                 </div>`
             };
         }
@@ -1406,7 +1478,16 @@ function renderQuickAddContent(dateStr) {
     const selectedDate = new Date(dateStr);
 
     apiRequest(`/api/schedules?start_date=${dateStr}&end_date=${dateStr}`).then(schedules => {
-        const existingTimes = schedules.map(s => s.start_time.substring(0, 5));
+        // 计算每个时间点是否被占用（考虑课程时长）
+        const bookedTimes = new Set();
+        schedules.forEach(s => {
+            const start = timeToMinutes(s.start_time.substring(0, 5));
+            const end = timeToMinutes(s.end_time.substring(0, 5));
+            // 标记从开始到结束的所有 30 分钟时段为已占用
+            for (let t = start; t < end; t += 30) {
+                bookedTimes.add(t);
+            }
+        });
 
         let html = `<div class="quick-add-section">
             <h4>${selectedDate.toLocaleDateString('zh-CN', {month:'long', day:'numeric', weekday:'long'})}</h4>
@@ -1418,7 +1499,8 @@ function renderQuickAddContent(dateStr) {
                 const hour = h.toString().padStart(2, '0');
                 const minute = m.toString().padStart(2, '0');
                 const time = `${hour}:${minute}`;
-                const isBooked = existingTimes.includes(time);
+                const timeMinutes = timeToMinutes(time);
+                const isBooked = bookedTimes.has(timeMinutes);
 
                 html += `<div class="time-slot ${isBooked ? 'booked' : ''}" onclick="quickAddSchedule('${dateStr}', '${time}', ${isBooked})">
                     <span class="time-slot-time">${time}</span>
@@ -1429,6 +1511,11 @@ function renderQuickAddContent(dateStr) {
 
         container.innerHTML = html;
     });
+}
+
+function timeToMinutes(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
 }
 
 function quickAddSchedule(date, time, isBooked) {
@@ -1476,21 +1563,45 @@ async function loadCalendarEvents(info, successCallback, failureCallback) {
             filteredSchedules = filteredSchedules.filter(s => s.course_id === parseInt(filterCourse));
         }
 
-        const events = filteredSchedules.map(s => ({
-            id: s.id,
-            title: `${s.student?.name || '未知'} - ${s.course?.name || '未知'}`,
-            start: `${s.date}T${s.start_time}`,
-            end: `${s.date}T${s.end_time}`,
-            extendedProps: {
-                student: s.student,
-                course: s.course,
-                template: s.template,
-                note: s.note,
-                repeatType: s.repeat_type,
-                userId: s.user_id
-            },
-            classNames: s.repeat_type && s.repeat_type !== 'none' ? ['recurring'] : []
-        }));
+        const events = filteredSchedules.map(s => {
+            const classes = [];
+            if (s.repeat_type && s.repeat_type !== 'none') {
+                classes.push('recurring');
+            }
+            if (s.template_id) {
+                classes.push('has-template');
+            }
+            // 按教练区分颜色
+            classes.push(`coach-${s.user_id}`);
+
+            // 根据上课记录状态添加样式
+            if (s.attendance_record) {
+                if (s.attendance_record.status === 'completed') {
+                    classes.push('status-completed');
+                } else if (s.attendance_record.status === 'absent') {
+                    classes.push('status-absent');
+                } else if (s.attendance_record.status === 'cancelled') {
+                    classes.push('status-cancelled');
+                }
+            }
+
+            return {
+                id: s.id,
+                title: `${s.student?.name || '未知'} - ${s.course?.name || '未知'} [${s.coach?.name || '教练'}]`,
+                start: `${s.date}T${s.start_time}`,
+                end: `${s.date}T${s.end_time}`,
+                extendedProps: {
+                    student: s.student,
+                    course: s.course,
+                    coach: s.coach,
+                    template: s.template,
+                    note: s.note,
+                    repeatType: s.repeat_type,
+                    userId: s.user_id
+                },
+                classNames: classes
+            };
+        });
 
         successCallback(events);
     } catch (err) {
@@ -1520,9 +1631,13 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.repeat-option').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            document.getElementById('schedule-repeat-type').value = this.dataset.repeat;
+            const repeatType = this.dataset.repeat;
+            document.getElementById('schedule-repeat-type').value = repeatType;
             document.getElementById('repeat-end-date-container').style.display =
-                this.dataset.repeat !== 'none' ? 'block' : 'none';
+                repeatType !== 'none' ? 'block' : 'none';
+            // 每周重复时显示周几选择
+            document.getElementById('repeat-days-container').style.display =
+                repeatType === 'weekly' ? 'block' : 'none';
         });
     });
 });
@@ -1530,7 +1645,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // ==================== 初始化 ====================
 
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('active');
+    // 确保模态框完全隐藏（处理CSS过渡可能导致的可见性问题）
+    setTimeout(() => {
+        if (!modal.classList.contains('active')) {
+            modal.style.display = 'none';
+        }
+    }, 300);
 }
 
 async function init() {

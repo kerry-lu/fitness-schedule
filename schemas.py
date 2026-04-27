@@ -125,6 +125,7 @@ class TemplateResponse(TemplateBase):
 class ScheduleBase(BaseModel):
     student_id: int
     course_id: int
+    coach_id: Optional[int] = None  # 教练 ID
     date: date
     start_time: time
     note: Optional[str] = None
@@ -132,6 +133,7 @@ class ScheduleBase(BaseModel):
     training_content: Optional[str] = None
     repeat_type: Optional[str] = "none"
     repeat_end_date: Optional[date] = None
+    repeat_days: Optional[str] = None  # JSON格式，如 "[1,3,5]"
 
 
 class ScheduleCreate(ScheduleBase):
@@ -141,6 +143,7 @@ class ScheduleCreate(ScheduleBase):
 class ScheduleUpdate(BaseModel):
     student_id: Union[int, None] = None
     course_id: Union[int, None] = None
+    coach_id: Union[int, None] = None
     date: Union[date, str, None] = None
     start_time: Union[time, str, None] = None
     note: Union[str, None] = None
@@ -148,6 +151,7 @@ class ScheduleUpdate(BaseModel):
     training_content: Union[str, None] = None
     repeat_type: Union[str, None] = None
     repeat_end_date: Union[date, str, None] = None
+    repeat_days: Union[str, None] = None
 
 
 class AttendanceBase(BaseModel):
@@ -188,6 +192,7 @@ class ScheduleResponse(ScheduleBase):
     course: Optional[CourseResponse] = None
     template: Optional[TemplateResponse] = None
     attendance_record: Optional[AttendanceResponse] = None
+    coach: Optional[UserResponse] = None
 
     class Config:
         from_attributes = True

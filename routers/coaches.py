@@ -17,9 +17,7 @@ class CoachUpdateRole(BaseModel):
 
 @router.get("", response_model=List[schemas.UserResponse])
 def list_coaches(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    """获取所有教练列表，只有主教练可访问"""
-    if not can_access_coach_management(current_user):
-        raise HTTPException(status_code=403, detail="只有主教练可访问此功能")
+    """获取所有教练列表，所有教练可访问"""
     return db.query(models.User).all()
 
 
