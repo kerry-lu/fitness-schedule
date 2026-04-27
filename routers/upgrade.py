@@ -312,7 +312,12 @@ def apply_update():
         with open(os.path.join(root, "version.py"), 'r') as f:
             content = f.read()
         with open(version_file, 'r') as f:
-            new_version = f.read().strip().split('\n')[0].split('=')[1].strip().strip('"')
+            version_content = f.read().strip().split('\n')[0]
+            # 支持 "BACKEND_VERSION = x.x.x" 或直接是 "x.x.x" 格式
+            if '=' in version_content:
+                new_version = version_content.split('=')[1].strip().strip('"')
+            else:
+                new_version = version_content.strip()
 
         # 简单替换版本号
         import re
@@ -320,6 +325,11 @@ def apply_update():
             r'BACKEND_VERSION = "[^"]*"',
             f'BACKEND_VERSION = "{new_version}"',
             content
+        )
+        new_content = re.sub(
+            r'FRONTEND_VERSION = "[^"]*"',
+            f'FRONTEND_VERSION = "{new_version}"',
+            new_content
         )
         with open(os.path.join(root, "version.py"), 'w') as f:
             f.write(new_content)
