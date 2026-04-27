@@ -925,12 +925,19 @@
         }
 
         async function applyUpgrade() {
-            if (!confirm('确定要应用升级吗？\n\n注意：\n1. 将自动创建备份\n2. 数据库不会被修改\n3. 升级后需要刷新页面')) return;
+            console.log('applyUpgrade called');
+            if (!confirm('确定要应用升级吗？\n\n注意：\n1. 将自动创建备份\n2. 数据库不会被修改\n3. 升级后需要刷新页面')) {
+                console.log('User cancelled');
+                return;
+            }
             try {
+                console.log('Calling /api/upgrade/apply');
                 const result = await apiRequest('/api/upgrade/apply', { method: 'POST' });
+                console.log('Apply result:', result);
                 alert(`升级成功！\n已创建备份：${result.backup}\n已升级文件数：${result.copied_files}\n\n请刷新页面或重新登录。`);
                 checkUpgradeStatus();
             } catch (err) {
+                console.error('Apply error:', err);
                 alert('升级失败：' + err.message);
             }
         }

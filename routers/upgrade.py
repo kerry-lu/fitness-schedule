@@ -554,28 +554,42 @@ def download_github_release(tag_name: str):
 
             # 解压到updates目录
             with zipfile.ZipFile(zip_data, 'r') as zip_ref:
-                # 获取顶层目录名
+                # 获取文件列表
                 names = zip_ref.namelist()
-                top_dir = names[0].split('/')[0] if names else ''
+
+                # 判断是否有顶层目录（大多数 GitHub 源码包的格式）
+                # 如果第一个条目是 "xxx/" 形式，说明有顶层目录
+                has_top_dir = len(names) > 0 and '/' in names[0] and names[0].endswith('/')
+
+                if has_top_dir:
+                    top_dir = names[0].split('/')[0]
+                else:
+                    top_dir = None
 
                 for name in names:
-                    if name.startswith(top_dir):
-                        # 去掉顶层目录
-                        target_name = name[len(top_dir):].lstrip('/')
-                        if not target_name:
+                    if top_dir:
+                        # 有顶层目录，去掉它
+                        if not name.startswith(top_dir):
                             continue
+                        target_name = name[len(top_dir):].lstrip('/')
+                    else:
+                        # 没有顶层目录，直接使用
+                        target_name = name
 
-                        target_path = os.path.join(update_path, target_name)
+                    if not target_name:
+                        continue
 
-                        if name.endswith('/'):
-                            # 目录
-                            os.makedirs(target_path, exist_ok=True)
-                        else:
-                            # 文件
-                            os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                            with zip_ref.open(name) as source:
-                                with open(target_path, 'wb') as target:
-                                    target.write(source.read())
+                    target_path = os.path.join(update_path, target_name)
+
+                    if name.endswith('/'):
+                        # 目录
+                        os.makedirs(target_path, exist_ok=True)
+                    else:
+                        # 文件
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        with zip_ref.open(name) as source:
+                            with open(target_path, 'wb') as target:
+                                target.write(source.read())
 
             # 写入VERSION文件
             with open(os.path.join(update_path, "VERSION"), 'w') as f:
