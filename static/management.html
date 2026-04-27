@@ -199,6 +199,16 @@
                         <label>到期日期</label>
                         <input type="date" id="student-expiration-date">
                     </div>
+                    <div class="form-group" id="adjust-credit-group" style="display: none;">
+                        <label>课时调整（正数增加，负数减少）</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="student-credit-adjust" value="0" min="-999" max="999" style="width: 100px;">
+                            <button type="button" onclick="adjustStudentCredits()" class="btn btn-secondary btn-small">确认调整</button>
+                        </div>
+                        <p style="font-size: 11px; color: var(--ios-text-secondary); margin-top: 5px;">
+                            当前剩余：<span id="current-credits-display">0</span> 课时
+                        </p>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">保存</button>
@@ -409,6 +419,39 @@
             document.getElementById('student-enable-credits').onchange = function() {
                 document.getElementById('credit-fields').style.display = this.checked ? 'block' : 'none';
             };
+            // 显示课时调整区域
+            if (student.enable_credits === 1) {
+                document.getElementById('adjust-credit-group').style.display = 'block';
+                document.getElementById('current-credits-display').textContent = Math.round(student.remaining_hours);
+            }
+        }
+
+        async function adjustStudentCredits() {
+            const id = document.getElementById('student-id').value;
+            if (!id) return;
+            const adjustValue = parseInt(document.getElementById('student-credit-adjust').value) || 0;
+            if (adjustValue === 0) {
+                alert('请输入要调整的课时数');
+                return;
+            }
+            if (!confirm(`确定要调整课时吗？\n\n将 ${adjustValue > 0 ? '增加' : '减少'} ${Math.abs(adjustValue)} 课时`)) {
+                return;
+            }
+            try {
+                const result = await apiRequest(`/api/students/${id}/adjust-credits`, {
+                    method: 'POST',
+                    body: JSON.stringify({ hours: adjustValue })
+                });
+                alert(`调整成功！当前剩余课时：${result.remaining_hours}`);
+                // 更新显示
+                document.getElementById('student-remaining-hours').value = result.remaining_hours;
+                document.getElementById('student-total-hours').value = result.total_hours;
+                document.getElementById('current-credits-display').textContent = result.remaining_hours;
+                document.getElementById('student-credit-adjust').value = 0;
+                loadStudents();
+            } catch (err) {
+                alert('调整失败：' + err.message);
+            }
         }
 
         async function saveStudent(e) {
