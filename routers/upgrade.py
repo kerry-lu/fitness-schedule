@@ -126,12 +126,13 @@ def get_versions():
                 update_version = content.split('=')[1].strip().strip('"')
             else:
                 update_version = content
-            if update_version != BACKEND_VERSION:
-                has_update = True
-                update_info = {
-                    "version": update_version,
-                    "path": update_path
-                }
+
+            # 如果有下载的更新包，显示可以应用（不管版本是否比当前高）
+            has_update = True
+            update_info = {
+                "version": update_version,
+                "path": update_path
+            }
 
     return {
         "frontend": FRONTEND_VERSION,
