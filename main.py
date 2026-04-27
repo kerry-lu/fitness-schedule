@@ -12,6 +12,7 @@ import routers.schedules
 import routers.templates
 import routers.coaches
 import routers.upgrade
+import routers.database_backup
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -26,6 +27,7 @@ app.include_router(routers.schedules.router)
 app.include_router(routers.templates.router)
 app.include_router(routers.coaches.router)
 app.include_router(routers.upgrade.router)
+app.include_router(routers.database_backup.router)
 
 # 静态文件
 app.mount("/static", StaticFiles(directory="static"), name="static")

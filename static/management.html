@@ -135,6 +135,35 @@
                     <button onclick="runMigrations()" id="btn-run-migrations" class="btn btn-primary btn-small" style="margin-top: 10px; display: none;">执行升级</button>
                 </div>
             </div>
+
+            <!-- 数据库路径配置 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>数据库路径</h3>
+                </div>
+                <div style="padding: 15px; background: var(--ios-card); border-radius: 12px; margin-bottom: 15px;">
+                    <div id="db-config-info" style="margin-bottom: 10px;"></div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="db-path-input" placeholder="输入数据库文件路径" style="flex: 1; min-width: 200px; padding: 8px; border: 1px solid var(--ios-border); border-radius: 8px;">
+                        <button onclick="saveDbPath()" class="btn btn-primary btn-small">保存路径</button>
+                    </div>
+                    <p style="font-size: 12px; color: var(--ios-text-secondary); margin-top: 8px;">
+                        环境变量 DATABASE_PATH 优先级高于此配置
+                    </p>
+                </div>
+            </div>
+
+            <!-- 数据库备份 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>数据库备份</h3>
+                </div>
+                <div style="padding: 15px; background: var(--ios-card); border-radius: 12px; margin-bottom: 15px;">
+                    <div id="db-backup-list"></div>
+                    <button onclick="loadDbBackups()" class="btn btn-secondary btn-small" style="margin-top: 10px;">刷新列表</button>
+                    <button onclick="createDbBackup()" class="btn btn-primary btn-small" style="margin-top: 10px;">创建备份</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -520,11 +549,30 @@
         }
 
         function showCourseModal(id = null) {
-            document.getElementById('course-modal').classList.add('active');
-            document.getElementById('course-form').reset();
+            const modal = document.getElementById('course-modal');
+            const form = document.getElementById('course-form');
+
+            // 确保modal处于正确状态
+            modal.classList.remove('active');
+
+            // 重置表单，确保完全清空所有字段
+            form.reset();
+
+            // 手动清空所有可能残留的值
             document.getElementById('course-id').value = '';
+            document.getElementById('course-name').value = '';
+            document.getElementById('course-duration').value = '30';
+            document.getElementById('course-description').value = '';
+
+            // 重置UI状态
             document.getElementById('delete-course-btn').style.display = 'none';
             document.getElementById('course-modal-title').textContent = '新增课程';
+
+            // 延迟一点再显示modal，确保DOM更新完成
+            setTimeout(() => {
+                modal.classList.add('active');
+            }, 10);
+
             if (id) editCourse(id);
         }
 
@@ -542,21 +590,40 @@
 
         async function saveCourse(e) {
             e.preventDefault();
+
+            const name = document.getElementById('course-name').value.trim();
+            const duration = parseInt(document.getElementById('course-duration').value);
+            const description = document.getElementById('course-description').value.trim();
             const id = document.getElementById('course-id').value;
+
+            if (!name) {
+                alert('请输入课程名称');
+                return;
+            }
+
             const data = {
-                name: document.getElementById('course-name').value,
-                duration_minutes: parseInt(document.getElementById('course-duration').value),
-                description: document.getElementById('course-description').value
+                name: name,
+                duration_minutes: duration,
+                description: description
             };
+
             try {
                 if (id) {
                     await apiRequest(`/api/courses/${id}`, { method: 'PUT', body: JSON.stringify(data) });
                 } else {
                     await apiRequest('/api/courses', { method: 'POST', body: JSON.stringify(data) });
                 }
+
+                // 成功后重置表单并关闭modal
+                document.getElementById('course-form').reset();
+                document.getElementById('course-id').value = '';
                 closeModal('course-modal');
-                loadCourses();
-            } catch (err) { alert(err.message); }
+
+                // 等待课程列表刷新完成
+                await loadCourses();
+            } catch (err) {
+                alert(err.message);
+            }
         }
 
         async function deleteCourse() {
@@ -874,6 +941,97 @@
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         }
 
+        // ==================== 数据库备份 ====================
+        async function loadDbConfig() {
+            try {
+                const config = await apiRequest('/api/database/config');
+                document.getElementById('db-config-info').innerHTML = `
+                    <p style="margin: 0;"><strong>当前数据库：</strong>${config.db_path}</p>
+                    <p style="margin: 5px 0 0 0; font-size: 12px; color: var(--ios-text-secondary);">
+                        <strong>备份目录：</strong>${config.backups_dir}
+                    </p>
+                `;
+                document.getElementById('db-path-input').value = config.db_path;
+            } catch (err) {
+                document.getElementById('db-config-info').innerHTML = '<p style="color: var(--ios-red);">获取配置失败</p>';
+            }
+        }
+
+        async function saveDbPath() {
+            const dbPath = document.getElementById('db-path-input').value.trim();
+            if (!dbPath) {
+                alert('请输入数据库路径');
+                return;
+            }
+            try {
+                const result = await apiRequest('/api/database/config', {
+                    method: 'POST',
+                    body: JSON.stringify({ db_path: dbPath })
+                });
+                alert('配置已保存：' + result.db_path);
+                loadDbConfig();
+            } catch (err) {
+                alert('保存失败：' + err.message);
+            }
+        }
+
+        async function loadDbBackups() {
+            try {
+                const backups = await apiRequest('/api/database/backups');
+                const container = document.getElementById('db-backup-list');
+                if (backups.length === 0) {
+                    container.innerHTML = '<p style="color: var(--ios-text-secondary);">暂无备份</p>';
+                    return;
+                }
+                container.innerHTML = backups.map(b => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--ios-border);">
+                        <div>
+                            <div style="font-weight: 500;">${b.name}</div>
+                            <div style="font-size: 12px; color: var(--ios-text-secondary);">${formatBytes(b.size)} | ${b.created}</div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="restoreDbBackup('${b.name}')" class="btn btn-secondary btn-small">恢复</button>
+                            <button onclick="deleteDbBackup('${b.name}')" class="btn btn-secondary btn-small" style="color: var(--ios-red);">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('db-backup-list').innerHTML = '<p style="color: var(--ios-red);">获取备份列表失败</p>';
+            }
+        }
+
+        async function createDbBackup() {
+            if (!confirm('确定要创建数据库备份吗？')) return;
+            try {
+                const result = await apiRequest('/api/database/backup', { method: 'POST' });
+                alert(`备份创建成功：${result.name}`);
+                loadDbBackups();
+            } catch (err) {
+                alert('备份失败：' + err.message);
+            }
+        }
+
+        async function restoreDbBackup(name) {
+            if (!confirm(`确定要使用备份 "${name}" 恢复数据库吗？\n\n注意：恢复前会自动创建当前数据库的紧急备份。`)) return;
+            try {
+                const result = await apiRequest(`/api/database/restore/${name}`, { method: 'POST' });
+                alert(`恢复成功！\n使用的备份：${result.backup_used}\n紧急备份：${result.emergency_backup || '无'}`);
+                loadDbBackups();
+            } catch (err) {
+                alert('恢复失败：' + err.message);
+            }
+        }
+
+        async function deleteDbBackup(name) {
+            if (!confirm(`确定要删除备份 "${name}" 吗？`)) return;
+            try {
+                await apiRequest(`/api/database/backups/${name}`, { method: 'DELETE' });
+                loadDbBackups();
+            } catch (err) {
+                alert('删除失败：' + err.message);
+            }
+        }
+
         // ==================== GitHub 在线升级 ====================
         async function loadGitHubConfig() {
             try {
@@ -982,6 +1140,8 @@
             checkMigrationStatus();
             checkUpgradeStatus();
             loadBackups();
+            loadDbConfig();
+            loadDbBackups();
             loadGitHubConfig();
         }
 
