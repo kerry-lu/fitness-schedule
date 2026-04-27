@@ -107,17 +107,22 @@ def update_config(config_update: DbConfigUpdate):
     if not db_path:
         raise HTTPException(status_code=400, detail="数据库路径不能为空")
 
-    # 验证路径是否有效
-    db_dir = os.path.dirname(db_path)
-    if not os.path.exists(db_dir):
-        raise HTTPException(status_code=400, detail="数据库目录不存在")
+    # 处理相对路径 - 转换为绝对路径
+    if not os.path.isabs(db_path):
+        db_path = os.path.join(get_project_root(), db_path)
 
-    # 如果数据库文件已存在，验证是否可读
+    # 验证父目录是否存在，如果不存在则尝试创建
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except OSError as e:
+            raise HTTPException(status_code=400, detail=f"无法创建目录: {e}")
+
+    # 如果数据库文件已存在，验证是否可读可写
     if os.path.exists(db_path):
-        if not os.access(db_path, os.R_OK):
-            raise HTTPException(status_code=400, detail="数据库文件不可读")
-        if not os.access(db_path, os.W_OK):
-            raise HTTPException(status_code=400, detail="数据库文件不可写")
+        if not os.access(db_path, os.R_OK | os.W_OK):
+            raise HTTPException(status_code=400, detail="数据库文件权限不足")
 
     # 保存配置
     config = load_config()
