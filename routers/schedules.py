@@ -80,6 +80,62 @@ def list_schedules(
     return result
 
 
+@router.get("/all", response_model=List[schemas.ScheduleResponse])
+def list_all_schedules(
+    start_date: date = None,
+    end_date: date = None,
+    skip: int = Query(0, ge=0, description="跳过的记录数"),
+    limit: int = Query(1000, ge=1, le=2000, description="返回的记录数"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """获取所有教练的课程安排（主教练专用）"""
+    if not is_head_coach(current_user):
+        raise HTTPException(status_code=403, detail="只有主教练才能查看所有课程")
+
+    query = db.query(models.Schedule).options(
+        joinedload(models.Schedule.student),
+        joinedload(models.Schedule.course),
+        joinedload(models.Schedule.template),
+        joinedload(models.Schedule.attendance_record),
+        joinedload(models.Schedule.user)
+    )
+
+    if start_date:
+        query = query.filter(models.Schedule.date >= start_date)
+    if end_date:
+        query = query.filter(models.Schedule.date <= end_date)
+
+    schedules = query.order_by(models.Schedule.date.desc(), models.Schedule.start_time.desc()).offset(skip).limit(limit).all()
+
+    result = []
+    for s in schedules:
+        result.append({
+            "id": s.id,
+            "user_id": s.user_id,
+            "coach_id": s.user_id,
+            "student_id": s.student_id,
+            "course_id": s.course_id,
+            "date": s.date,
+            "start_time": s.start_time,
+            "end_time": s.end_time,
+            "note": s.note,
+            "template_id": s.template_id,
+            "training_content": s.training_content,
+            "repeat_type": s.repeat_type,
+            "repeat_end_date": s.repeat_end_date,
+            "repeat_days": s.repeat_days,
+            "series_id": s.series_id,
+            "created_at": s.created_at,
+            "student": s.student,
+            "course": s.course,
+            "template": s.template,
+            "attendance_record": s.attendance_record,
+            "coach": s.user,
+        })
+    return result
+
+
 def generate_repeat_dates(start_date: date, repeat_type: str, repeat_end_date: date, repeat_days: list = None) -> list:
     """根据重复类型生成所有重复日期
 
