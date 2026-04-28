@@ -7,7 +7,7 @@ import uuid
 from database import get_db
 import models
 import schemas
-from auth import get_current_user
+from auth import get_current_user, is_head_coach
 from authorization import can_modify_schedule, can_access_coach_management
 
 router = APIRouter(prefix="/api/schedules", tags=["课表管理"])
@@ -130,11 +130,7 @@ def generate_repeat_dates(start_date: date, repeat_type: str, repeat_end_date: d
 
 
 def check_time_conflict(db: Session, student_id: int, schedule_date: date, start_time: time_cls, end_time: time_cls, coach_id: int = None, exclude_id: int = None) -> bool:
-    """检查时间是否冲突
-
-    Args:
-        coach_id: 如果指定，则只检查该教练的时间冲突（用于防止其他教练的课程影响本教练的预约）
-    """
+    """检查单个日期是否存在时间冲突"""
     query = db.query(models.Schedule).filter(
         models.Schedule.student_id == student_id,
         models.Schedule.date == schedule_date,
@@ -143,7 +139,6 @@ def check_time_conflict(db: Session, student_id: int, schedule_date: date, start
         models.Schedule.end_time > start_time
     )
 
-    # 只检查当前教练的时间冲突，避免其他教练的课程影响本教练的预约时段
     if coach_id is not None:
         query = query.filter(models.Schedule.user_id == coach_id)
 
@@ -152,6 +147,30 @@ def check_time_conflict(db: Session, student_id: int, schedule_date: date, start
 
     conflicting = query.first()
     return conflicting is not None
+
+
+def check_conflicts_for_dates(db: Session, student_id: int, dates: list, start_time: time_cls, end_time: time_cls, coach_id: int, exclude_id: int = None) -> list:
+    """批量检查多个日期的冲突，一次查询完成"""
+    if not dates:
+        return []
+
+    # 查询所有在日期范围内且时间重叠的课程
+    query = db.query(models.Schedule).filter(
+        models.Schedule.student_id == student_id,
+        models.Schedule.date.in_(dates),
+        models.Schedule.start_time < end_time,
+        models.Schedule.end_time > start_time
+    )
+
+    if coach_id is not None:
+        query = query.filter(models.Schedule.user_id == coach_id)
+
+    if exclude_id:
+        query = query.filter(models.Schedule.id != exclude_id)
+
+    conflicting = query.all()
+    # 返回冲突的日期列表
+    return [str(s.date) for s in conflicting]
 
 
 @router.post("", response_model=schemas.ScheduleResponse)
@@ -191,7 +210,7 @@ def create_schedule(schedule_data: schemas.ScheduleCreate, db: Session = Depends
     if schedule_data.repeat_days:
         try:
             repeat_days_list = json.loads(schedule_data.repeat_days)
-        except:
+        except json.JSONDecodeError:
             repeat_days_list = None
 
     if repeat_type == "none" or not schedule_data.repeat_end_date:
@@ -223,6 +242,9 @@ def create_schedule(schedule_data: schemas.ScheduleCreate, db: Session = Depends
         db.refresh(db_schedule)
     else:
         # 重复课程，生成 series_id 并创建所有重复实例
+        # 如果指定了 coach_id 则使用，否则使用当前用户
+        coach_id = schedule_data.coach_id if schedule_data.coach_id else current_user.id
+
         series_id = str(uuid.uuid4())
         repeat_dates = generate_repeat_dates(
             schedule_data.date,
@@ -231,18 +253,14 @@ def create_schedule(schedule_data: schemas.ScheduleCreate, db: Session = Depends
             repeat_days_list
         )
 
-        # 先检查所有日期是否都有冲突
-        # 使用当前用户ID检查冲突，避免其他教练的课程影响本教练的预约时段
-        conflict_dates = []
-        for repeat_date in repeat_dates:
-            if check_time_conflict(db, schedule_data.student_id, repeat_date, schedule_data.start_time, end_time, coach_id=current_user.id):
-                conflict_dates.append(str(repeat_date))
+        # 批量检查所有日期冲突（一次查询完成）
+        conflict_dates = check_conflicts_for_dates(
+            db, schedule_data.student_id, repeat_dates,
+            schedule_data.start_time, end_time, coach_id
+        )
 
         if conflict_dates:
             raise HTTPException(status_code=400, detail=f"以下日期存在时间冲突: {', '.join(conflict_dates)}")
-
-        # 如果指定了 coach_id 则使用，否则使用当前用户
-        coach_id = schedule_data.coach_id if schedule_data.coach_id else current_user.id
 
         first_schedule = None
         for idx, repeat_date in enumerate(repeat_dates):
@@ -552,11 +570,17 @@ def complete_schedule(
     if not can_modify_schedule(schedule, current_user):
         raise HTTPException(status_code=403, detail="无权操作此课程安排")
 
-    # 如果启用课时功能且需要扣减
+    # 如果启用课时功能且需要扣减，使用行锁防止竞态条件
     if deduct_credits and schedule.student.enable_credits:
-        if schedule.student.remaining_hours > 0:
-            # 每完成一节课扣减指定课时数
-            schedule.student.remaining_hours = schedule.student.remaining_hours - CREDIT_DEDUCTION_PER_SESSION
+        # 使用 with_for_update() 锁定学生行，防止并发扣减
+        student = db.query(models.Student).filter(
+            models.Student.id == schedule.student_id
+        ).with_for_update().first()
+
+        if student and student.remaining_hours > 0:
+            # 按课程时长扣减课时：30分钟=0.5课时，60分钟=1课时，以此类推
+            credits_to_deduct = schedule.course.duration_minutes / 60.0
+            student.remaining_hours = max(0, student.remaining_hours - credits_to_deduct)
 
     db.commit()
     return {"message": "课程已完成", "remaining_hours": int(schedule.student.remaining_hours) if schedule.student else 0}

@@ -12,8 +12,7 @@ COPY . .
 # 创建数据库目录
 RUN mkdir -p /app/data
 
-# 设置环境变量
-ENV SECRET_KEY=change-me-in-production
+# 设置环境变量（SECRET_KEY 必须通过环境变量传入，不要设置默认值）
 ENV TZ=Asia/Shanghai
 
 # 暴露端口

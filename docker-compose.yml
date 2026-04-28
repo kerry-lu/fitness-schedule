@@ -9,6 +9,6 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./db_config.json:/app/db_config.json
     environment:
       - TZ=Asia/Shanghai
+      - DATABASE_PATH=/app/data/fitness_schedule.db

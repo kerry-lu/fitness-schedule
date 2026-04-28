@@ -15,6 +15,17 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// HTML 属性转义函数
+function escapeAttr(text) {
+    if (text == null) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 // Toast 通知系统
 let toastTimeout = null;
 function showToast(message, type = 'info') {
@@ -214,10 +225,10 @@ function addTemplateStage(stage = null) {
     if (stage?.exercises && stage.exercises.length > 0) {
         exercisesHtml = stage.exercises.map((ex, idx) => `
             <div class="exercise-row" data-index="${idx}">
-                <input type="text" class="exercise-name" placeholder="动作名称" value="${ex.name || ''}">
-                <input type="number" class="exercise-sets" placeholder="组" value="${ex.sets || ''}" min="1" style="width: 60px;">
+                <input type="text" class="exercise-name" placeholder="动作名称" value="${escapeAttr(ex.name || '')}">
+                <input type="number" class="exercise-sets" placeholder="组" value="${escapeAttr(ex.sets || '')}" min="1" style="width: 60px;">
                 <span class="exercise-unit">组 ×</span>
-                <input type="number" class="exercise-reps" placeholder="次" value="${ex.reps || ''}" min="1" style="width: 60px;">
+                <input type="number" class="exercise-reps" placeholder="次" value="${escapeAttr(ex.reps || '')}" min="1" style="width: 60px;">
                 <span class="exercise-unit">次</span>
                 <button type="button" class="exercise-remove" onclick="removeExerciseRow(this)">×</button>
             </div>
@@ -228,8 +239,8 @@ function addTemplateStage(stage = null) {
 
     stageDiv.innerHTML = `
         <div class="template-stage-header-editor">
-            <input type="text" class="stage-name" placeholder="阶段名称（如：热身）" value="${stage?.name || ''}" required>
-            <input type="number" class="stage-duration" placeholder="时长" value="${stage?.duration || ''}" style="width: 70px;">
+            <input type="text" class="stage-name" placeholder="阶段名称（如：热身）" value="${escapeAttr(stage?.name || '')}" required>
+            <input type="number" class="stage-duration" placeholder="时长" value="${escapeAttr(stage?.duration || '')}" style="width: 70px;">
             <span class="exercise-unit">分钟</span>
         </div>
         <div class="template-exercises-list">
@@ -1207,10 +1218,10 @@ function addTrainingStageEdit(stage = null) {
     if (stage?.exercises && stage.exercises.length > 0) {
         exercisesHtml = stage.exercises.map((ex, idx) => `
             <div class="exercise-row">
-                <input type="text" class="exercise-name" placeholder="动作名称" value="${ex.name || ''}">
-                <input type="number" class="exercise-reps" placeholder="次" value="${ex.reps || ''}" min="1" style="width: 60px;">
+                <input type="text" class="exercise-name" placeholder="动作名称" value="${escapeAttr(ex.name || '')}">
+                <input type="number" class="exercise-reps" placeholder="次" value="${escapeAttr(ex.reps || '')}" min="1" style="width: 60px;">
                 <span class="exercise-unit">次 ×</span>
-                <input type="number" class="exercise-sets" placeholder="组" value="${ex.sets || ''}" min="1" style="width: 60px;">
+                <input type="number" class="exercise-sets" placeholder="组" value="${escapeAttr(ex.sets || '')}" min="1" style="width: 60px;">
                 <span class="exercise-unit">组</span>
                 <button type="button" class="exercise-remove" onclick="this.parentElement.remove()">×</button>
             </div>
@@ -1230,8 +1241,8 @@ function addTrainingStageEdit(stage = null) {
 
     stageDiv.innerHTML = `
         <div class="template-stage-header-editor">
-            <input type="text" class="stage-name" placeholder="阶段名称（如：热身）" value="${stage?.name || ''}" style="flex:1;">
-            <input type="number" class="stage-duration" placeholder="时长" value="${stage?.duration || ''}" style="width: 70px;">
+            <input type="text" class="stage-name" placeholder="阶段名称（如：热身）" value="${escapeAttr(stage?.name || '')}" style="flex:1;">
+            <input type="number" class="stage-duration" placeholder="时长" value="${escapeAttr(stage?.duration || '')}" style="width: 70px;">
             <span class="exercise-unit">分钟</span>
             <button type="button" class="exercise-remove" onclick="this.parentElement.parentElement.remove()">×</button>
         </div>

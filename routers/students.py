@@ -84,10 +84,21 @@ def adjust_credits(student_id: int, adjust_data: CreditAdjustRequest, db: Sessio
         raise HTTPException(status_code=403, detail="无权调整此学员课时")
 
     new_remaining = student.remaining_hours + adjust_data.hours
-    # 允许负数课时
-    student.remaining_hours = new_remaining
+
+    # 防止课时变为负数
+    if new_remaining < 0:
+        raise HTTPException(status_code=400, detail="课时不能为负数")
+
+    # 如果增加课时，同时更新 total_hours
     if adjust_data.hours > 0:
         student.total_hours = student.total_hours + adjust_data.hours
+        student.remaining_hours = new_remaining
+    else:
+        # 如果减少课时，不轻易降低 total_hours（避免数据混乱）
+        # 但如果会导致 remaining > total，则同步减少 total
+        student.remaining_hours = new_remaining
+        if new_remaining > student.total_hours:
+            student.total_hours = max(0, new_remaining)
 
     db.commit()
     db.refresh(student)

@@ -5,6 +5,7 @@ from database import get_db
 import models
 import schemas
 from auth import get_current_user, is_head_coach
+from authorization import can_access_coach_management
 
 router = APIRouter(prefix="/api/courses", tags=["课程管理"])
 
@@ -52,6 +53,10 @@ def update_course(course_id: int, course_data: schemas.CourseCreate, db: Session
 
 @router.delete("/{course_id}")
 def delete_course(course_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """删除课程，只有主教练才能删除"""
+    if not is_head_coach(current_user):
+        raise HTTPException(status_code=403, detail="只有主教练才能删除课程")
+
     course = db.query(models.Course).filter(models.Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="课程不存在")

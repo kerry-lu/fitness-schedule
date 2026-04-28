@@ -1,7 +1,11 @@
 from sqlalchemy import Column, Integer, Float, String, Text, Date, Time, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class User(Base):
@@ -12,7 +16,7 @@ class User(Base):
     password_hash = Column(String)
     name = Column(String)
     role = Column(String, default="coach")  # coach=教练, head_coach=主教练
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     students = relationship("Student", back_populates="user")
     schedules = relationship("Schedule", back_populates="user")
@@ -36,7 +40,7 @@ class Student(Base):
     remaining_hours = Column(Float, default=0.0)  # 剩余课时
     expiration_date = Column(Date, nullable=True)  # 到期日期
     enable_credits = Column(Integer, default=1)  # 是否启用课时功能 0=关闭 1=开启
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", back_populates="students")
     schedules = relationship("Schedule", back_populates="student")
@@ -61,7 +65,7 @@ class CourseTemplate(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     name = Column(String, index=True)
     content = Column(Text)  # JSON 格式训练内容
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", back_populates="course_templates")
     schedules = relationship("Schedule", back_populates="template")
@@ -86,7 +90,7 @@ class Schedule(Base):
     repeat_end_date = Column(Date, nullable=True)
     repeat_days = Column(String, nullable=True)  # JSON格式，存储周几重复，如 "[1,3,5]"
     series_id = Column(String, nullable=True)  # 同一系列课程共享此 ID
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     user = relationship("User", back_populates="schedules")
     student = relationship("Student", back_populates="schedules")
@@ -107,7 +111,7 @@ class AttendanceRecord(Base):
     status = Column(String, default="completed")  # completed, absent, cancelled
     student_status = Column(String, nullable=True)  # 学员状态：良好/疲劳/不适
     coach_note = Column(Text, nullable=True)  # 教练备注
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     schedule = relationship("Schedule", back_populates="attendance_record")
     student = relationship("Student", back_populates="attendance_records")

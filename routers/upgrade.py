@@ -7,15 +7,25 @@ import json
 import zipfile
 import io
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from version import FRONTEND_VERSION, BACKEND_VERSION, UPDATES_DIR, BACKUPS_DIR, GITHUB_REPO, GITHUB_TOKEN
+from auth import get_current_user, is_head_coach
+from database import get_db
+import models
 
 router = APIRouter(prefix="/api/upgrade", tags=["升级"])
+
+
+def require_head_coach(current_user: models.User = Depends(get_current_user)):
+    """只有主教练才能访问升级功能"""
+    if not is_head_coach(current_user):
+        raise HTTPException(status_code=403, detail="只有主教练才能执行此操作")
+    return current_user
 
 # 可升级的文件清单（相对于项目根目录）
 UPGRADEABLE_FILES = [
@@ -107,7 +117,7 @@ def calculate_dir_hash(dirpath: str) -> str:
 
 
 @router.get("/versions", response_model=VersionInfo)
-def get_versions():
+def get_versions(current_user: models.User = Depends(require_head_coach)):
     """获取当前版本信息"""
     root = get_project_root()
 
@@ -143,7 +153,7 @@ def get_versions():
 
 
 @router.get("/update-files")
-def get_update_files():
+def get_update_files(current_user: models.User = Depends(require_head_coach)):
     """获取待升级文件列表"""
     root = get_project_root()
     update_path = os.path.join(root, UPDATES_DIR)
@@ -184,7 +194,7 @@ def get_update_files():
 
 
 @router.post("/backup")
-def create_backup():
+def create_backup(current_user: models.User = Depends(require_head_coach)):
     """创建当前版本的备份"""
     root = get_project_root()
     backup_dir = os.path.join(root, BACKUPS_DIR)
@@ -214,7 +224,7 @@ def create_backup():
 
 
 @router.get("/backups")
-def list_backups():
+def list_backups(current_user: models.User = Depends(require_head_coach)):
     """列出所有备份"""
     root = get_project_root()
     backup_dir = os.path.join(root, BACKUPS_DIR)
@@ -238,8 +248,14 @@ def list_backups():
 
 
 @router.post("/restore/{backup_name}")
-def restore_backup(backup_name: str):
+def restore_backup(backup_name: str, current_user: models.User = Depends(require_head_coach)):
     """从备份恢复"""
+    # 验证备份文件名安全
+    if ".." in backup_name or "/" in backup_name or "\\" in backup_name:
+        raise HTTPException(status_code=400, detail="备份文件名无效")
+    if not backup_name.endswith('.tar.gz'):
+        raise HTTPException(status_code=400, detail="备份文件格式无效")
+
     root = get_project_root()
     backup_path = os.path.join(root, BACKUPS_DIR, backup_name)
 
@@ -252,11 +268,16 @@ def restore_backup(backup_name: str):
         shutil.rmtree(extract_dir)
 
     with tarfile.open(backup_path, "r:gz") as tar:
+        # 检查 tar 文件内容是否安全（防止tar炸弹）
+        for member in tar.getmembers():
+            if ".." in member.name or member.name.startswith("/"):
+                raise HTTPException(status_code=400, detail="备份文件内容无效")
         tar.extractall(extract_dir)
 
     # 恢复文件
+    backup_base = backup_name.replace('.tar.gz', '')
     for item in UPGRADEABLE_FILES:
-        backup_item = os.path.join(extract_dir, backup_name.replace('.tar.gz', ''), item)
+        backup_item = os.path.join(extract_dir, backup_base, item)
         target_item = os.path.join(root, item)
 
         if os.path.exists(backup_item):
@@ -274,7 +295,7 @@ def restore_backup(backup_name: str):
 
 
 @router.post("/apply")
-def apply_update():
+def apply_update(current_user: models.User = Depends(require_head_coach)):
     """应用升级（仅升级代码，不影响数据库）"""
     root = get_project_root()
     update_path = os.path.join(root, UPDATES_DIR)
@@ -343,7 +364,7 @@ def apply_update():
 
 
 @router.delete("/backups/{backup_name}")
-def delete_backup(backup_name: str):
+def delete_backup(backup_name: str, current_user: models.User = Depends(require_head_coach)):
     """删除备份"""
     root = get_project_root()
     backup_path = os.path.join(root, BACKUPS_DIR, backup_name)
@@ -372,7 +393,7 @@ class GitHubConfig(BaseModel):
 
 
 @router.get("/github/config", response_model=GitHubConfig)
-def get_github_config():
+def get_github_config(current_user: models.User = Depends(require_head_coach)):
     """获取GitHub配置"""
     return {
         "repo": GITHUB_REPO,
@@ -381,7 +402,7 @@ def get_github_config():
 
 
 @router.post("/github/config")
-def set_github_config(config: GitHubConfig):
+def set_github_config(config: GitHubConfig, current_user: models.User = Depends(require_head_coach)):
     """设置GitHub仓库配置"""
     if config.repo and "/" not in config.repo:
         raise HTTPException(status_code=400, detail="仓库格式应为 owner/repo")
@@ -414,7 +435,7 @@ def set_github_config(config: GitHubConfig):
 
 
 @router.get("/github/releases", response_model=List[GitHubRelease])
-def get_github_releases():
+def get_github_releases(current_user: models.User = Depends(require_head_coach)):
     """获取GitHub releases列表"""
     if not GITHUB_REPO:
         raise HTTPException(status_code=400, detail="请先配置GitHub仓库")
@@ -458,7 +479,7 @@ def get_github_releases():
 
 
 @router.get("/github/latest")
-def get_latest_release():
+def get_latest_release(current_user: models.User = Depends(require_head_coach)):
     """获取最新版本信息"""
     if not GITHUB_REPO:
         raise HTTPException(status_code=400, detail="请先配置GitHub仓库")
@@ -509,7 +530,7 @@ def get_latest_release():
 
 
 @router.post("/github/download/{tag_name}")
-def download_github_release(tag_name: str):
+def download_github_release(tag_name: str, current_user: models.User = Depends(require_head_coach)):
     """从GitHub下载并解压指定版本的升级包"""
     if not GITHUB_REPO:
         raise HTTPException(status_code=400, detail="请先配置GitHub仓库")

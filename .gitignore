@@ -1,6 +1,55 @@
+# Python
 *.pyc
 __pycache__/
-*.db
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
 .venv/
-.pytest_cache/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Config (may contain sensitive data)
+db_config.json
+.env
+.env.local
+
+# Backups & temp
+backups/
+db_backups/
+*.backup
+*.bak
+*.tar.gz
+
+# Logs
+*.log
+logs/
+
+# Uploads
+uploads/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
