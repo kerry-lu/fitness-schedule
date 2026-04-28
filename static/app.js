@@ -1553,12 +1553,9 @@ async function loadCalendarEvents(info, successCallback, failureCallback) {
         const startDate = info.startStr.split('T')[0];
         const endDate = info.endStr.split('T')[0];
 
-        // 主教练获取所有课程，普通教练只获取自己的
-        const apiUrl = currentUser?.role === 'head_coach'
-            ? `/api/schedules/all?start_date=${startDate}&end_date=${endDate}`
-            : `/api/schedules?start_date=${startDate}&end_date=${endDate}`;
-
-        const schedules = await apiRequest(apiUrl);
+        const schedules = await apiRequest(
+            `/api/schedules?start_date=${startDate}&end_date=${endDate}`
+        );
 
         // 获取筛选条件
         const filterCoach = document.getElementById('filter-coach').value;
