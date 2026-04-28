@@ -129,18 +129,15 @@ def generate_repeat_dates(start_date: date, repeat_type: str, repeat_end_date: d
     return dates
 
 
-def check_time_conflict(db: Session, student_id: int, schedule_date: date, start_time: time_cls, end_time: time_cls, coach_id: int = None, exclude_id: int = None) -> bool:
-    """检查单个日期是否存在时间冲突"""
+def check_time_conflict(db: Session, schedule_date: date, start_time: time_cls, end_time: time_cls, coach_id: int, exclude_id: int = None) -> bool:
+    """检查单个日期是否存在时间冲突（按教练检查，不按学员）"""
     query = db.query(models.Schedule).filter(
-        models.Schedule.student_id == student_id,
+        models.Schedule.user_id == coach_id,  # 同一教练
         models.Schedule.date == schedule_date,
         # 时间重叠检测：(existing_start < new_end) AND (existing_end > new_start)
         models.Schedule.start_time < end_time,
         models.Schedule.end_time > start_time
     )
-
-    if coach_id is not None:
-        query = query.filter(models.Schedule.user_id == coach_id)
 
     if exclude_id:
         query = query.filter(models.Schedule.id != exclude_id)
@@ -149,21 +146,18 @@ def check_time_conflict(db: Session, student_id: int, schedule_date: date, start
     return conflicting is not None
 
 
-def check_conflicts_for_dates(db: Session, student_id: int, dates: list, start_time: time_cls, end_time: time_cls, coach_id: int, exclude_id: int = None) -> list:
-    """批量检查多个日期的冲突，一次查询完成"""
+def check_conflicts_for_dates(db: Session, dates: list, start_time: time_cls, end_time: time_cls, coach_id: int, exclude_id: int = None) -> list:
+    """批量检查多个日期的冲突，一次查询完成（按教练检查）"""
     if not dates:
         return []
 
     # 查询所有在日期范围内且时间重叠的课程
     query = db.query(models.Schedule).filter(
-        models.Schedule.student_id == student_id,
+        models.Schedule.user_id == coach_id,  # 同一教练
         models.Schedule.date.in_(dates),
         models.Schedule.start_time < end_time,
         models.Schedule.end_time > start_time
     )
-
-    if coach_id is not None:
-        query = query.filter(models.Schedule.user_id == coach_id)
 
     if exclude_id:
         query = query.filter(models.Schedule.id != exclude_id)
@@ -215,8 +209,8 @@ def create_schedule(schedule_data: schemas.ScheduleCreate, db: Session = Depends
 
     if repeat_type == "none" or not schedule_data.repeat_end_date:
         # 不重复，只创建一条课程，先检查冲突
-        # 使用当前用户ID检查冲突，避免其他教练的课程影响本教练的预约时段
-        if check_time_conflict(db, schedule_data.student_id, schedule_data.date, schedule_data.start_time, end_time, coach_id=current_user.id):
+        # 检查当前教练是否有时间冲突
+        if check_time_conflict(db, schedule_data.date, schedule_data.start_time, end_time, coach_id=current_user.id):
             raise HTTPException(status_code=400, detail="该时间段与已有课程冲突")
 
         series_id = None
@@ -255,7 +249,7 @@ def create_schedule(schedule_data: schemas.ScheduleCreate, db: Session = Depends
 
         # 批量检查所有日期冲突（一次查询完成）
         conflict_dates = check_conflicts_for_dates(
-            db, schedule_data.student_id, repeat_dates,
+            db, repeat_dates,
             schedule_data.start_time, end_time, coach_id
         )
 
@@ -383,7 +377,7 @@ def update_schedule(
             parts = end_time_str.split(":")
             new_end_time = time_cls(int(parts[0]), int(parts[1]))
 
-            if check_time_conflict(db, schedule.student_id, new_date, new_start_time, new_end_time, coach_id=schedule.user_id, exclude_id=schedule_id):
+            if check_time_conflict(db, new_date, new_start_time, new_end_time, coach_id=schedule.user_id, exclude_id=schedule_id):
                 raise HTTPException(status_code=400, detail="该时间段与已有课程冲突")
 
     for key, value in update_data.items():
